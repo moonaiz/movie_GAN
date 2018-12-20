@@ -34,8 +34,8 @@ def load_pose_cords_from_strings(y_str, x_str):
     x_cords = json.loads(x_str)
     return np.concatenate([np.expand_dims(y_cords, -1), np.expand_dims(x_cords, -1)], axis=1)
 
-def draw_pose_from_cords(pose_joints, img_size, radius=2, draw_joints=True):
-    colors = np.zeros(shape=img_size + (3, ), dtype=np.uint8)
+def draw_pose_from_cords(pose_joints, img_size, target_img, radius=2, draw_joints=True):
+    colors = target_img
     mask = np.zeros(shape=img_size, dtype=bool)
 
     if draw_joints:
@@ -73,6 +73,7 @@ if __name__ == "__main__":
         exit()
 
     images_list = os.listdir(input_image_folder + sub_folder)
+
     for i in range(len(images_list))
     output_path = output_folder + str(i) + '.jpg'
 
@@ -81,15 +82,18 @@ if __name__ == "__main__":
     for index, row in df.iterrows():
         pose_cords = load_pose_cords_from_strings(row['keypoints_y'], row['keypoints_x'])
 
-        colors, mask = draw_pose_from_cords(pose_cords, (128, 64))
-
-        mmm = produce_ma_mask(pose_cords, (128, 64)).astype(float)[..., np.newaxis].repeat(3, axis=-1)
-        print mmm.shape
         img = imread(input_image_folder + sub_folder + row['name'])
+        colors, mask = draw_pose_from_cords(pose_cords, (256, 256), img)
+
+        mmm = produce_ma_mask(pose_cords, (256, 256)).astype(float)[..., np.newaxis].repeat(3, axis=-1)
+        print mmm.shape
+
 
         mmm[mask] = colors[mask]
 
+"""
         print (mmm)
         plt.subplot(1, 1, 1)
         plt.imshow(mmm)
         plt.show()
+"""
