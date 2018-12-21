@@ -86,7 +86,7 @@ if __name__ == "__main__":
         colors, mask = draw_pose_from_cords(pose_cords, (256, 256), img)
 
         mmm = produce_ma_mask(pose_cords, (256, 256)).astype(float)[..., np.newaxis].repeat(3, axis=-1)
-        print mmm.shape
+        #print mmm.shape
 
 
         mmm[mask] = colors[mask]
