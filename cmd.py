@@ -62,7 +62,7 @@ def args():
     parser.add_argument('--use_dropout_test', default=0, type=int,
                         help='To use dropout when generate images')
 
-    parser.add_argument("--check_pose_dir", default=None)
+    parser.add_argument('--check_pose_dir', default=None)
 
     args = parser.parse_args()
 
