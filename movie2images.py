@@ -24,7 +24,7 @@ def movie2image(input_dir, movie_name, output_dir):
 
     fix_frame = image_shape_fix(frame)
 
-    cv2.imwrite(output_dir + '/%s_part%s/%s.jpg'% (movie_name, str(part), str(num % 32)),fix_frame)
+    cv2.imwrite(output_dir + '/%s_part%s/%s.jpg'% (movie_name, str(part), '{0:02d}'.format(num % 32)),fix_frame)
     num += 1
 
  video.release()
