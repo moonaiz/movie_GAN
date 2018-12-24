@@ -12,7 +12,7 @@ if not os.path.exists(base_folder + input_folder):
 fourcc = cv2.VideoWriter_fourcc('m','p','4','v')
 video = cv2.VideoWriter('video.mp4', fourcc, 20.0, (128, 64))
 
-for i in range(1, 20):
+for i in range(0, 31):
     img = cv2.imread('{0:02d}.jpg'.format(i))
     video.write(img)
 
