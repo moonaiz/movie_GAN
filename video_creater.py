@@ -1,6 +1,8 @@
 import cv2
 import os
-import cmd import args
+from cmd import args
+
+args = args()
 
 base_folder = './pose_check/'
 input_folder = '%s/'% args.check_pose_dir
