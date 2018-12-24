@@ -17,7 +17,7 @@ class MOVIE_GAN():
         self.coordinates = 2
         self.annotations = 18
         self.flames = 32
-        self.pose_movie = (self.coordinates, self.annotations, self.flames)
+        self.pose_movie_shape = (self.coordinates, self.annotations, self.flames)
         self.latent_dim = 100
 
         optimizer = Adam(0.0002, 0.5)
@@ -46,6 +46,33 @@ class MOVIE_GAN():
         self.combined = Model(z, valid)
         self.combined.compile(loss='binary_crossentropy', optimizer=optimizer)
 
+    def build_generator(self):
+        model = Sequential()
+
+        model.add(Dense(32 * 18 * 2, activation = "relu", input_dim=self.latent_dim))
+        model.add(Reshape((2 * 18 * 32)))
+
+        model.summary()
+
+        noise = Input(shape=(self.latent_dim,))
+        pose_movie = model(noise)
+
+        return Model(noise, pose_movie)
+
+    def build_discriminator(self):
+
+        model = Sequential()
+
+        model.add(Dense(1, activation='sigmoid', input_shape=self.pose_movie_shape))
+
+        model.summary()
+
+        pose_movie = Input(shape=self.pose_movie_shape)
+        validity = model(pose_movie)
+
+        return Model(pose_movie, validity)
+
+    def train(self, epochs, batch_size=32, save_interval=50):
 
  if __name__ == '__main__':
      movie_gan = MOVIE_GAN()
