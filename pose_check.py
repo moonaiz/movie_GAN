@@ -34,12 +34,14 @@ def load_pose_cords_from_strings(y_str, x_str):
     x_cords = json.loads(x_str)
     return np.concatenate([np.expand_dims(y_cords, -1), np.expand_dims(x_cords, -1)], axis=1)
 
-def draw_pose_from_cords(pose_joints, img_size, target_img, radius=2, draw_joints=True):
-    colors = np.zeros(shape=img_size + (3, ), dtype=np.uint8)
-    colors = target_img
+#def draw_pose_from_cords(pose_joints, img_size, target_img, radius=2, draw_joints=True):
+def draw_pose_from_cords(pose_joints, img_size, radius=2, draw_joints=True):
+    #if background use
+    #colors = np.zeros(shape=img_size + (3, ), dtype=np.uint8)
+    #colors = target_img
 
     #if background is none
-    #colors = np.zeros(shape=img_size + (3, ), dtype=np.uint8)
+    colors = np.zeros(shape=img_size + (3, ), dtype=np.uint8)
 
     if draw_joints:
         for f, t in LIMB_SEQ:
@@ -65,7 +67,7 @@ if __name__ == "__main__":
 
     args = args()
     input_image_folder = './images/'
-    input_annotation_folder = './annotations/'
+    input_annotation_folder = './output/annotations/'
     output_folder = './pose_check/'
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
@@ -73,22 +75,23 @@ if __name__ == "__main__":
     sub_folder  = '%s/' % args.check_pose_dir
 
     #if you will see only stickman, this statement is not necessary
-    if not os.path.exists(input_image_folder + sub_folder):
-        print('images folder is nothing')
-        exit()
+    #if not os.path.exists(input_image_folder + sub_folder):
+    #    print('images folder is nothing')
+    #    exit()
 
-    else:
-        if not os.path.exists(output_folder + sub_folder):
+    #else:
+    if not os.path.exists(output_folder + sub_folder):
             os.makedirs(output_folder + sub_folder)
 
-    images_list = os.listdir(input_image_folder + sub_folder)
+    #images_list = os.listdir(input_image_folder + sub_folder)
 
     df = pd.read_csv(input_annotation_folder + '%s.csv'% args.check_pose_dir, sep=':')
 
     for index, row in df.iterrows():
         pose_cords = load_pose_cords_from_strings(row['keypoints_y'], row['keypoints_x'])
 
-        img = cv2.imread(input_image_folder + sub_folder + row['name'])
-        colors= draw_pose_from_cords(pose_cords, (128, 64), img)
+    #    img = cv2.imread(input_image_folder + sub_folder + row['name'])
+    #    colors= draw_pose_from_cords(pose_cords, (256, 256), img)
+        colors= draw_pose_from_cords(pose_cords, (256, 256))
 
         cv2.imwrite(output_folder + sub_folder + row['name'], colors)
