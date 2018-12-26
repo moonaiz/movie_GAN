@@ -38,6 +38,9 @@ def draw_pose_from_cords(pose_joints, img_size, target_img, radius=2, draw_joint
     colors = np.zeros(shape=img_size + (3, ), dtype=np.uint8)
     colors = target_img
 
+    #if background is none
+    #colors = np.zeros(shape=img_size + (3, ), dtype=np.uint8)
+
     if draw_joints:
         for f, t in LIMB_SEQ:
             from_missing = pose_joints[f][0] == MISSING_VALUE or pose_joints[f][1] == MISSING_VALUE
@@ -68,6 +71,8 @@ if __name__ == "__main__":
         os.makedirs(output_folder)
 
     sub_folder  = '%s/' % args.check_pose_dir
+
+    #if you will see only stickman, this statement is not necessary
     if not os.path.exists(input_image_folder + sub_folder):
         print('images folder is nothing')
         exit()
