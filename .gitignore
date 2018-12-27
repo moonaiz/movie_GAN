@@ -5,6 +5,7 @@
 *.pickle
 *.pyc
 *.jpg
+*.csv
 
 .data
 .DS_Store
