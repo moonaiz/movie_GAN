@@ -9,6 +9,7 @@ from tqdm import tqdm
 import cv2
 import os
 import pandas as pd
+import json
 
 import numpy as np
 
@@ -73,8 +74,14 @@ class MOVIE_GAN():
 
         return Model(pose_movie, validity)
 
+    def load_pose_cords(self, y_str, x_str):
+        y_cords = json.loads(y_str)
+        x_cords = json.loads(x_str)
+        cords = np.concatenate([np.expand_dims(y_cords, -1), np.expand_dims(x_cords, -1)], axis=1)
+        return cords.astype(np.int)
+
     def train(self, epochs, batch_size=32, save_interval=50):
-        from pose_utils import load_pose_cords_from_strings
+        #from pose_utils import load_pose_cords_from_string
         input_folder = './annotations/'
         annotation_list = os.listdir(input_folder)
 
@@ -87,9 +94,10 @@ class MOVIE_GAN():
             t = 0
 
             for index, row in df.iterrows():
-                train[i][t] = load_pose_cords_from_strings(row['keypoints_y'], row['keypoints_x'])
+                train[i][t] = self.load_pose_cords(row['keypoints_y'], row['keypoints_x'])
                 t += 1
 
+        #print(train[0][0][0][0])
         train = train / 127.5 - 1
 
         valid = np.ones((batch_size, 1))
@@ -100,7 +108,7 @@ class MOVIE_GAN():
             idx = np.random.randint(0, train.shape[0], batch_size)
             pose_movie_train = train[idx]
 
-            noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
+            noise = np.random.uniform(0, 1, (batch_size, self.latent_dim))
             pose_movie_gen = self.generator.predict(noise)
 
             # Train the discriminator (real classified as ones and generated as zeros)
@@ -124,7 +132,7 @@ class MOVIE_GAN():
 
     def save_annotations(self, epoch):
         r, c = 5, 5
-        noise = np.random.normal(0, 1, (r * c, self.latent_dim))
+        noise = np.random.uniform(0, 1, (r * c, self.latent_dim))
         pose_movie_gen = self.generator.predict(noise)#gen_img -1 - 1
 
         if not os.path.exists('./output'):
@@ -156,4 +164,4 @@ class MOVIE_GAN():
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=501, batch_size=32, save_interval=50)
+movie_gan.train(epochs=500, batch_size=32, save_interval=50)

@@ -45,6 +45,8 @@ def draw_pose_from_cords(pose_joints, img_size, radius=2, draw_joints=True):
             if from_missing or to_missing:
                 continue
             yy, xx, val = line_aa(pose_joints[f][0], pose_joints[f][1], pose_joints[t][0], pose_joints[t][1])
+            print(colors.shape)
+            print(val.shape)
             colors[yy, xx] = np.expand_dims(val, 1) * 255
 
     for i, joint in enumerate(pose_joints):
