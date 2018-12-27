@@ -51,7 +51,7 @@ class MOVIE_GAN():
     def build_generator(self):
         model = Sequential()
 
-        model.add(Dense(32 * 18 * 2, activation = "relu", input_dim=self.latent_dim))
+        model.add(Dense(32 * 18 * 2, activation = "sigmoid", input_dim=self.latent_dim))
         model.add(Reshape((32, 18 ,2)))
 
         model.summary()
@@ -108,7 +108,7 @@ class MOVIE_GAN():
             idx = np.random.randint(0, train.shape[0], batch_size)
             pose_movie_train = train[idx]
 
-            noise = np.random.uniform(0, 1, (batch_size, self.latent_dim))
+            noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
             pose_movie_gen = self.generator.predict(noise)
 
             # Train the discriminator (real classified as ones and generated as zeros)
@@ -132,8 +132,9 @@ class MOVIE_GAN():
 
     def save_annotations(self, epoch):
         r, c = 5, 5
-        noise = np.random.uniform(0, 1, (r * c, self.latent_dim))
+        noise = np.random.normal(0, 1, (r * c, self.latent_dim))
         pose_movie_gen = self.generator.predict(noise)#gen_img -1 - 1
+        print(np.argmax(pose_movie_gen[0][0]))
 
         if not os.path.exists('./output'):
             os.mkdir('./output')
@@ -164,4 +165,4 @@ class MOVIE_GAN():
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=500, batch_size=32, save_interval=50)
+movie_gan.train(epochs=501, batch_size=32, save_interval=50)
