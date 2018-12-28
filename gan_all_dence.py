@@ -165,4 +165,4 @@ class MOVIE_GAN():
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=2001, batch_size=32, save_interval=50)
+movie_gan.train(epochs=501, batch_size=32, save_interval=50)
