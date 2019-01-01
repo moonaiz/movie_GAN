@@ -102,6 +102,8 @@ class MOVIE_GAN():
         valid = np.ones((batch_size, 1))
         fake = np.zeros((batch_size, 1))
 
+        f = open('gan_loss.txt','w')
+
         for epoch in range(epochs):
 
             idx = np.random.randint(0, train.shape[0], batch_size)
@@ -124,11 +126,15 @@ class MOVIE_GAN():
             g_loss = self.combined.train_on_batch(noise, valid)
 
             # Plot the progress
+
             print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
+            print("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss), file=f)
 
             # If at save interval => save generated image samples
             if epoch % save_interval == 0:
                 self.save_annotations(epoch)
+
+        f.close()
 
     def save_annotations(self, epoch):
         r, c = 5, 5
@@ -165,4 +171,4 @@ class MOVIE_GAN():
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=501, batch_size=32, save_interval=50)
+movie_gan.train(epochs=30001, batch_size=32, save_interval=1000)
