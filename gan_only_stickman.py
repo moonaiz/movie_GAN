@@ -6,6 +6,8 @@ from keras.models import Sequential, Model
 from keras.optimizers import Adam
 from tqdm import tqdm
 
+import keras.backend as K
+
 import cv2
 import os
 import pandas as pd
@@ -18,8 +20,7 @@ class MOVIE_GAN():
         #Input shape
         self.coordinates = 2
         self.annotations = 18
-        self.flames = 32
-        self.pose_movie_shape = (self.flames, self.annotations, self.coordinates)
+        self.pose_shape = (self.annotations, self.coordinates)
         self.latent_dim = 100
 
         optimizer = Adam(0.0002, 0.5)
@@ -51,28 +52,28 @@ class MOVIE_GAN():
     def build_generator(self):
         model = Sequential()
 
-        model.add(Dense(32 * 18 * 2, activation = "tanh", input_dim=self.latent_dim))
-        model.add(Reshape((32, 18 ,2)))
+        model.add(Dense(18 * 2, activation = "tanh", input_dim=self.latent_dim))
+        model.add(Reshape((18 ,2)))
 
         model.summary()
 
         noise = Input(shape=(self.latent_dim,))
-        pose_movie = model(noise)
+        pose_man = model(noise)
 
-        return Model(noise, pose_movie)
+        return Model(noise, pose_man)
 
     def build_discriminator(self):
         model = Sequential()
 
-        model.add(Reshape((1152, ), input_shape=self.pose_movie_shape))
+        model.add(Reshape((36, ), input_shape=self.pose_shape))
         model.add(Dense(1, activation='sigmoid'))
 
         model.summary()
 
-        pose_movie = Input(shape=self.pose_movie_shape)
-        validity = model(pose_movie)
+        pose_man = Input(shape=self.pose_shape)
+        validity = model(pose_man)
 
-        return Model(pose_movie, validity)
+        return Model(pose_man, validity)
 
     def load_pose_cords(self, y_str, x_str):
         y_cords = json.loads(y_str)
@@ -85,16 +86,15 @@ class MOVIE_GAN():
         input_folder = './annotations/'
         annotation_list = os.listdir(input_folder)
 
-        train = np.zeros((len(annotation_list), ) + self.pose_movie_shape)
+        train = np.zeros((len(annotation_list) * 32, ) + self.pose_shape)
 
         for i in range(len(annotation_list)):
             df = pd.read_csv(input_folder + '%s'% annotation_list[i], sep=':')
             df = df.sort_values('name')
 
             t = 0
-
             for index, row in df.iterrows():
-                train[i][t] = self.load_pose_cords(row['keypoints_y'], row['keypoints_x'])
+                train[i * 32 + t] = self.load_pose_cords(row['keypoints_y'], row['keypoints_x'])
                 t += 1
 
         train = train / 127.5 - 1
@@ -103,19 +103,19 @@ class MOVIE_GAN():
         fake = np.zeros((batch_size, 1))
 
         f = open('gan_loss.txt','w')
-        
+
         for epoch in range(epochs):
 
             idx = np.random.randint(0, train.shape[0], batch_size)
-            pose_movie_train = train[idx]
+            pose_man_train = train[idx]
 
             noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
-            pose_movie_gen = self.generator.predict(noise)
+            pose_man_gen = self.generator.predict(noise)
 
 
             # Train the discriminator (real classified as ones and generated as zeros)
-            d_loss_real = self.discriminator.train_on_batch(pose_movie_train, valid)#valid=real
-            d_loss_fake = self.discriminator.train_on_batch(pose_movie_gen, fake)#fake
+            d_loss_real = self.discriminator.train_on_batch(pose_man_train, valid)#valid=real
+            d_loss_fake = self.discriminator.train_on_batch(pose_man_gen, fake)#fake
             d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
 
             # ---------------------
@@ -137,9 +137,9 @@ class MOVIE_GAN():
         f.close()
 
     def save_annotations(self, epoch):
-        r, c = 5, 5
+        r, c = 6, 6
         noise = np.random.normal(0, 1, (r * c, self.latent_dim))
-        pose_movie_gen = self.generator.predict(noise)#gen_img -1 - 1
+        pose_man_gen = self.generator.predict(noise)#gen_img -1 - 1
 
 
         if not os.path.exists('./output'):
@@ -150,12 +150,12 @@ class MOVIE_GAN():
             os.mkdir(output_folder)
 
         # Rescale 0 - 1
-        pose_movie_gen = 0.5 * pose_movie_gen + 0.5
+        pose_man_gen = 0.5 * pose_man_gen + 0.5
 
         # Rescale 0 - 255
-        pose_movie_gen = 255 * pose_movie_gen
+        pose_man_gen = 255 * pose_man_gen
 
-        pose_movie_gen = pose_movie_gen.astype('int32')
+        pose_man_gen = pose_man_gen.astype('int32')
 
         output_path = output_folder + "epoch_%d.csv" % epoch
 
@@ -164,11 +164,12 @@ class MOVIE_GAN():
         print('name:keypoints_y:keypoints_x',file=result_file)
 
         for t in range(32):
-            print('%s.jpg: %s: %s' % ('{0:02d}'.format(t), str(list(pose_movie_gen[0, t, :, 0])), str(list(pose_movie_gen[0, t, :, 1]))), file=result_file)
+            print('%s.jpg: %s: %s' % ('{0:02d}'.format(t), str(list(pose_man_gen[t, :, 0])), str(list(pose_man_gen[t, :, 1]))), file=result_file)
             result_file.flush()
 
 
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=30001, batch_size=32, save_interval=1000)
+movie_gan.train(epochs=10001, batch_size=32, save_interval=1000)
+K.clear_session()
