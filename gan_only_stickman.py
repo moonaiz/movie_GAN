@@ -15,6 +15,10 @@ import json
 
 import numpy as np
 
+LIMB_SEQ = [[1,2], [1,5], [2,3], [3,4], [5,6], [6,7], [1,8], [8,9],
+           [9,10], [1,11], [11,12], [12,13], [1,0], [0,14], [14,16],
+           [0,15], [15,17], [2,16], [5,17]]
+
 class MOVIE_GAN():
     def __init__(self):
         #Input shape
@@ -80,6 +84,17 @@ class MOVIE_GAN():
         x_cords = json.loads(x_str)
         cords = np.concatenate([np.expand_dims(y_cords, -1), np.expand_dims(x_cords, -1)], axis=1)
         return cords.astype(np.int)
+
+    def l2_loss(real, fake):
+        standard = np.linalg.norm([real[][0],real[][1]] - [real[][0],real[][1]])
+        for f, t in LIMB_SEQ:
+
+            real = np.linalg.norm([real[f][0],real[f][1]] - [real[t][0],real[t][1]]) / standard
+            fake = np.linalg.norm([fake[f][0],fake[f][1]] - [fake[t][0],fake[t][1]]) / standard
+
+            loss += pow(fake-real, 2)
+
+        return loss
 
     def train(self, epochs, batch_size=32, save_interval=50):
         #from pose_utils import load_pose_cords_from_string
@@ -171,5 +186,5 @@ class MOVIE_GAN():
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=10001, batch_size=32, save_interval=1000)
+movie_gan.train(epochs=10001, batch_size=128, save_interval=1000)
 K.clear_session()
