@@ -19,6 +19,10 @@ LIMB_SEQ = [[1,2], [1,5], [2,3], [3,4], [5,6], [6,7], [1,8], [8,9],
            [9,10], [1,11], [11,12], [12,13], [1,0], [0,14], [14,16],
            [0,15], [15,17], [2,16], [5,17]]
 
+OLD2NEW = [[2,0], [3,1], [4,2], [5,3], [6,4], [7,5], [8,6], [9,7],
+            [10,8], [11,9], [12,10], [13,11], [1,12], [14,13], [15,14],
+            [0,15], [16,16], [17,17]]
+
 class MOVIE_GAN():
     def __init__(self):
         #Input shape
@@ -96,6 +100,19 @@ class MOVIE_GAN():
 
         return loss
 
+    def replace_index(stickman, flag):
+        stick_old = stickman
+        stick_new = np.zeros(18,2)
+        for f, t in OLD2NEW:
+
+            if flag == True:
+                stick_new[t][:] = stick_old[f][:]
+            else
+                stick_new[f][:] = stick_old[t][:]
+
+        return stick_new
+
+
     def train(self, epochs, batch_size=32, save_interval=50):
         #from pose_utils import load_pose_cords_from_string
         input_folder = './annotations/'
@@ -122,7 +139,7 @@ class MOVIE_GAN():
         for epoch in range(epochs):
 
             idx = np.random.randint(0, train.shape[0], batch_size)
-            pose_man_train = train[idx]
+            pose_man_train = replace_index(train[idx], True)
 
             noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
             pose_man_gen = self.generator.predict(noise)
@@ -156,6 +173,7 @@ class MOVIE_GAN():
         noise = np.random.normal(0, 1, (r * c, self.latent_dim))
         pose_man_gen = self.generator.predict(noise)#gen_img -1 - 1
 
+        pose_man_gen[:] = replace_index(pose_man_gen[:], False)
 
         if not os.path.exists('./output'):
             os.mkdir('./output')
