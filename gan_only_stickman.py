@@ -2,6 +2,7 @@ from __future__ import print_function, division
 
 from keras.layers import Input, Dense, Reshape, Flatten
 from keras.layers.advanced_activations import LeakyReLU
+from keras.initializers import VarianceScaling
 from keras.models import Sequential, Model
 from keras.optimizers import Adam
 from tqdm import tqdm
@@ -29,7 +30,7 @@ class MOVIE_GAN():
         self.coordinates = 2
         self.annotations = 18
         self.pose_shape = (self.annotations, self.coordinates)
-        self.latent_dim = 100
+        self.latent_dim = 120
 
         optimizer = Adam(0.0002, 0.5)
 
@@ -60,7 +61,8 @@ class MOVIE_GAN():
     def build_generator(self):
         model = Sequential()
 
-        model.add(Dense(18 * 2, activation = "tanh", input_dim=self.latent_dim))
+        model.add(Dense(6, activation = "tanh", input_dim=self.latent_dim, bias_initializer=VarianceScaling(scale=1.0, mode='fan_out')))
+        model.add(Dense(6 * 3 * 2, activation= "tanh"))
         model.add(Reshape((18 ,2)))
 
         model.summary()
@@ -74,6 +76,7 @@ class MOVIE_GAN():
         model = Sequential()
 
         model.add(Reshape((36, ), input_shape=self.pose_shape))
+        model.add(Dense(6, activation='tanh', bias_initializer=VarianceScaling(scale=1.0, mode='fan_out')))
         model.add(Dense(1, activation='sigmoid'))
 
         model.summary()
@@ -89,8 +92,9 @@ class MOVIE_GAN():
         cords = np.concatenate([np.expand_dims(y_cords, -1), np.expand_dims(x_cords, -1)], axis=1)
         return cords.astype(np.int)
 
+
     def l2_loss(real, fake):
-        standard = np.linalg.norm([real[][0],real[][1]] - [real[][0],real[][1]])
+        standard = np.linalg.norm([real[8][0],real[8][1]] - [real[9][0],real[9][1]])
         for f, t in LIMB_SEQ:
 
             real = np.linalg.norm([real[f][0],real[f][1]] - [real[t][0],real[t][1]]) / standard
@@ -100,14 +104,16 @@ class MOVIE_GAN():
 
         return loss
 
-    def replace_index(stickman, flag):
+
+
+    def replace_index(self, stickman, flag):
         stick_old = stickman
-        stick_new = np.zeros(18,2)
+        stick_new = np.zeros((18,2), dtype = float)
         for f, t in OLD2NEW:
 
             if flag == True:
                 stick_new[t][:] = stick_old[f][:]
-            else
+            else:
                 stick_new[f][:] = stick_old[t][:]
 
         return stick_new
@@ -139,7 +145,10 @@ class MOVIE_GAN():
         for epoch in range(epochs):
 
             idx = np.random.randint(0, train.shape[0], batch_size)
-            pose_man_train = replace_index(train[idx], True)
+
+            pose_man_train = np.zeros((batch_size, 18, 2), dtype=float)
+            for i in range(batch_size):
+                pose_man_train[i] = self.replace_index(train[idx[i]], True)
 
             noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
             pose_man_gen = self.generator.predict(noise)
@@ -173,7 +182,8 @@ class MOVIE_GAN():
         noise = np.random.normal(0, 1, (r * c, self.latent_dim))
         pose_man_gen = self.generator.predict(noise)#gen_img -1 - 1
 
-        pose_man_gen[:] = replace_index(pose_man_gen[:], False)
+        for i in range(32):
+            pose_man_gen[i] = self.replace_index(pose_man_gen[i], False)
 
         if not os.path.exists('./output'):
             os.mkdir('./output')
@@ -204,5 +214,5 @@ class MOVIE_GAN():
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=10001, batch_size=128, save_interval=1000)
+movie_gan.train(epochs=10001, batch_size=1, save_interval=1000)
 K.clear_session()
