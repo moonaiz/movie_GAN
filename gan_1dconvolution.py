@@ -1,8 +1,9 @@
 from __future__ import print_function, division
 
-from keras.layers import Input, Dense, Reshape, Flatten
+from keras.layers import Input, Dense, Reshape, Flatten, Dropout
+from keras.layers import BatchNormalization, Activation
 from keras.layers.advanced_activations import LeakyReLU
-from keras.initializers import VarianceScaling
+from keras.layers.convolutional import UpSampling1D, Conv1D
 from keras.models import Sequential, Model
 from keras.optimizers import Adam
 from tqdm import tqdm
@@ -31,9 +32,9 @@ class MOVIE_GAN():
         self.coordinates = 2
         self.annotations = 18
         self.pose_shape = (self.annotations, self.coordinates)
-        self.latent_dim = 120
+        self.latent_dim = 100
 
-        optimizer = Adam(0.001, 0.5)
+        optimizer = Adam(0.0002, 0.5)
 
         # Build and compile the discriminator
         self.discriminator = self.build_discriminator()
@@ -62,9 +63,18 @@ class MOVIE_GAN():
     def build_generator(self):
         model = Sequential()
 
-        model.add(Dense(6, activation = "tanh", input_dim=self.latent_dim, bias_initializer=VarianceScaling(scale=1.0, mode='fan_out')))
-        model.add(Dense(6 * 3 * 2, activation= "tanh"))
-        model.add(Reshape((18 ,2)))
+        model.add(Dense(3 * 128, activation="relu", input_dim=self.latent_dim))
+        model.add(Reshape((3, 128)))
+        model.add(Conv1D(128, kernel_size=3, padding="same"))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(Activation("relu"))
+        model.add(UpSampling1D(size=2))
+        model.add(Conv1D(64, kernel_size=3, padding="same"))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(Activation("relu"))
+        model.add(UpSampling1D(size=3))
+        model.add(Conv1D(self.coordinates, kernel_size=3, padding="same"))
+        model.add(Activation("tanh"))
 
         model.summary()
 
@@ -76,8 +86,15 @@ class MOVIE_GAN():
     def build_discriminator(self):
         model = Sequential()
 
-        model.add(Reshape((36, ), input_shape=self.pose_shape))
-        model.add(Dense(6, activation='tanh', bias_initializer=VarianceScaling(scale=1.0, mode='fan_out')))
+        model.add(Conv1D(64, kernel_size=3, strides=3, input_shape=self.pose_shape, padding="same"))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.25))
+        model.add(Conv1D(128, kernel_size=3, strides=2, padding="same"))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(LeakyReLU(alpha=0.2))
+        model.add(Dropout(0.25))
+        model.add(Flatten())
         model.add(Dense(1, activation='sigmoid'))
 
         model.summary()
@@ -93,20 +110,6 @@ class MOVIE_GAN():
         cords = np.concatenate([np.expand_dims(y_cords, -1), np.expand_dims(x_cords, -1)], axis=1)
         return cords.astype(np.int)
 
-
-    def l2_loss(real, fake):
-        standard = np.linalg.norm([real[8][0],real[8][1]] - [real[9][0],real[9][1]])
-        for f, t in LIMB_SEQ:
-
-            real = np.linalg.norm([real[f][0],real[f][1]] - [real[t][0],real[t][1]]) / standard
-            fake = np.linalg.norm([fake[f][0],fake[f][1]] - [fake[t][0],fake[t][1]]) / standard
-
-            loss += pow(fake-real, 2)
-
-        return loss
-
-
-
     def replace_index(self, stickman, flag):
         stick_old = stickman
         stick_new = np.zeros((18,2), dtype = float)
@@ -119,14 +122,6 @@ class MOVIE_GAN():
 
         return stick_new
 
-    def cords_to_map(self, cords, img_size, sigma=6):
-        result = np.zeros(img_size, dtype='float32')
-        for i, point in enumerate(cords):
-            if point[0] == MISSING_VALUE or point[1] == MISSING_VALUE:
-                continue
-            xx, yy = np.meshgrid(np.arange(img_size[1]), np.arange(img_size[0]))
-            result = np.exp(-((yy - point[0]) ** 2 + (xx - point[1]) ** 2) / (2 * sigma ** 2))
-        return result
 
     def train(self, epochs, batch_size=32, save_interval=50):
         #from pose_utils import load_pose_cords_from_string
@@ -225,5 +220,5 @@ class MOVIE_GAN():
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=10001, batch_size=1, save_interval=1000)
+movie_gan.train(epochs=1001, batch_size=1, save_interval=100)
 K.clear_session()
