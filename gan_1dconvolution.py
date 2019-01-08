@@ -63,17 +63,15 @@ class MOVIE_GAN():
     def build_generator(self):
         model = Sequential()
 
-        model.add(Dense(3 * 128, activation="relu", input_dim=self.latent_dim))
-        model.add(Reshape((3, 128)))
-        model.add(Conv1D(128, kernel_size=3, padding="same"))
-        model.add(BatchNormalization(momentum=0.8))
+        model.add(Dense(111 * 64, activation="relu", input_dim=self.latent_dim))
+        model.add(Reshape((111, 64)))
+        model.add(Conv1D(64, kernel_size=3))
+        model.add(BatchNormalization())
         model.add(Activation("relu"))
-        model.add(UpSampling1D(size=2))
-        model.add(Conv1D(64, kernel_size=3, padding="same"))
-        model.add(BatchNormalization(momentum=0.8))
+        model.add(Conv1D(32, kernel_size=3, strides=2))
+        model.add(BatchNormalization())
         model.add(Activation("relu"))
-        model.add(UpSampling1D(size=3))
-        model.add(Conv1D(self.coordinates, kernel_size=3, padding="same"))
+        model.add(Conv1D(self.coordinates, kernel_size=3, strides=3))
         model.add(Activation("tanh"))
 
         model.summary()
@@ -87,13 +85,8 @@ class MOVIE_GAN():
         model = Sequential()
 
         model.add(Conv1D(64, kernel_size=3, strides=3, input_shape=self.pose_shape, padding="same"))
-        model.add(BatchNormalization(momentum=0.8))
+        model.add(BatchNormalization())
         model.add(LeakyReLU(alpha=0.2))
-        model.add(Dropout(0.25))
-        model.add(Conv1D(128, kernel_size=3, strides=2, padding="same"))
-        model.add(BatchNormalization(momentum=0.8))
-        model.add(LeakyReLU(alpha=0.2))
-        model.add(Dropout(0.25))
         model.add(Flatten())
         model.add(Dense(1, activation='sigmoid'))
 
@@ -220,5 +213,5 @@ class MOVIE_GAN():
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=1001, batch_size=1, save_interval=100)
+movie_gan.train(epochs=10001, batch_size=32, save_interval=100)
 K.clear_session()

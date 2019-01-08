@@ -1,6 +1,7 @@
 from __future__ import print_function, division
 
 from keras.layers import Input, Dense, Reshape, Flatten
+from keras.layers import BatchNormalization, Activation
 from keras.layers.advanced_activations import LeakyReLU
 from keras.initializers import VarianceScaling
 from keras.models import Sequential, Model
@@ -62,7 +63,12 @@ class MOVIE_GAN():
     def build_generator(self):
         model = Sequential()
 
-        model.add(Dense(6, activation = "tanh", input_dim=self.latent_dim, bias_initializer=VarianceScaling(scale=1.0, mode='fan_out')))
+        model.add(Dense(1000, input_dim=self.latent_dim))
+        model.add(Activation("relu"))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(Dense(500, input_dim=self.latent_dim))
+        model.add(Activation("relu"))
+        model.add(BatchNormalization(momentum=0.8))
         model.add(Dense(6 * 3 * 2, activation= "tanh"))
         model.add(Reshape((18 ,2)))
 
@@ -77,7 +83,12 @@ class MOVIE_GAN():
         model = Sequential()
 
         model.add(Reshape((36, ), input_shape=self.pose_shape))
-        model.add(Dense(6, activation='tanh', bias_initializer=VarianceScaling(scale=1.0, mode='fan_out')))
+        model.add(Dense(1000))
+        model.add(Activation("relu"))
+        model.add(BatchNormalization(momentum=0.8))
+        model.add(Dense(500))
+        model.add(Activation("relu"))
+        model.add(BatchNormalization(momentum=0.8))
         model.add(Dense(1, activation='sigmoid'))
 
         model.summary()
@@ -225,5 +236,5 @@ class MOVIE_GAN():
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=10001, batch_size=1, save_interval=1000)
+movie_gan.train(epochs=10001, batch_size=32, save_interval=1000)
 K.clear_session()
