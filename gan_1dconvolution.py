@@ -72,7 +72,11 @@ class MOVIE_GAN():
         model.add(BatchNormalization())
         model.add(Activation("relu"))
         model.add(Conv1D(self.coordinates, kernel_size=3, strides=3))
-        model.add(Activation("tanh"))
+        model.add(BatchNormalization())
+        model.add(Activation("relu"))
+        model.add(Flatten())
+        model.add(Dense(36, activation="tanh"))
+        model.add(Reshape((18 ,2)))
 
         model.summary()
 
@@ -86,7 +90,6 @@ class MOVIE_GAN():
 
         model.add(Conv1D(64, kernel_size=3, strides=3, input_shape=self.pose_shape, padding="same"))
         model.add(BatchNormalization())
-        model.add(LeakyReLU(alpha=0.2))
         model.add(Flatten())
         model.add(Dense(1, activation='sigmoid'))
 
