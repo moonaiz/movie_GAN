@@ -90,6 +90,7 @@ class MOVIE_GAN():
 
         model.add(Conv1D(64, kernel_size=3, strides=3, input_shape=self.pose_shape, padding="same"))
         model.add(BatchNormalization())
+        model.add(LeakyReLU(alpha=0.2))
         model.add(Flatten())
         model.add(Dense(1, activation='sigmoid'))
 
@@ -216,5 +217,5 @@ class MOVIE_GAN():
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=10001, batch_size=32, save_interval=100)
+movie_gan.train(epochs=5001, batch_size=32, save_interval=100)
 K.clear_session()
