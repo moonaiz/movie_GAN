@@ -23,8 +23,8 @@ LIMB_SEQ = [[1,2], [1,5], [2,3], [3,4], [5,6], [6,7], [1,8], [8,9],
            [0,15], [15,17], [2,16], [5,17]]
 
 OLD2NEW = [[2,0], [3,1], [4,2], [5,3], [6,4], [7,5], [8,6], [9,7],
-            [10,8], [11,9], [12,10], [13,11], [1,12], [14,13], [15,14],
-            [0,15], [16,16], [17,17]]
+            [10,8], [11,9], [12,10], [13,11], [1,15], [14,13], [15,14],
+            [0,12], [16,16], [17,17]]
 
 class MOVIE_GAN():
     def __init__(self):
@@ -63,15 +63,15 @@ class MOVIE_GAN():
     def build_generator(self):
         model = Sequential()
 
-        model.add(Dense(111 * 64, activation="relu", input_dim=self.latent_dim))
-        model.add(Reshape((111, 64)))
-        model.add(Conv1D(64, kernel_size=3))
+        model.add(Dense(128 * 64, activation="relu", input_dim=self.latent_dim))
+        model.add(Reshape((128, 64)))
+        model.add(Conv1D(64, kernel_size=4, strides=2, padding='same'))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
-        model.add(Conv1D(32, kernel_size=3, strides=2))
+        model.add(Conv1D(32, kernel_size=4, strides=2, padding='same'))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
-        model.add(Conv1D(self.coordinates, kernel_size=3, strides=3))
+        model.add(Conv1D(16, kernel_size=4, strides=2, padding='same'))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
         model.add(Flatten())
@@ -88,7 +88,7 @@ class MOVIE_GAN():
     def build_discriminator(self):
         model = Sequential()
 
-        model.add(Conv1D(128, kernel_size=3, strides=3, input_shape=self.pose_shape, padding="same"))
+        model.add(Conv1D(128, kernel_size=4, strides=2, padding='same', input_shape=self.pose_shape))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
         model.add(Flatten())
