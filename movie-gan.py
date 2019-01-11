@@ -12,6 +12,7 @@ import cv2
 import os
 import pandas as pd
 import json
+import csv
 
 import numpy as np
 
@@ -81,7 +82,7 @@ class MOVIE_GAN():
     def build_discriminator(self):
         model = Sequential()
 
-        model.add(Conv2D(128, kernel_size=(3, 4), strides=(1, 2), padding='same', input_shape=self.pose_movie_shape))
+        model.add(Conv2D(16, kernel_size=(3, 4), strides=(1, 2), padding='same', input_shape=self.pose_movie_shape))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
         model.add(Flatten())
@@ -134,17 +135,19 @@ class MOVIE_GAN():
         valid = np.ones((batch_size, 1))
         fake = np.zeros((batch_size, 1))
 
-        f = open('gan_loss.txt','w')
+        f = open('gan_loss.csv','a')
+        writer = csv.writer(f)
+        writer.writerow(['epoch','D_loss','accuracy','G_loss'])
 
         for epoch in range(epochs):
 
             idx = np.random.randint(0, train.shape[0], batch_size)
-            pose_man_train = np.zeros((batch_size, 32, 18, 2), dtype=float)
+            pose_movie_train = np.zeros((batch_size, 32, 18, 2), dtype=float)
 
             for i in range(batch_size):
-                pose_man_train[i] = train[idx[i]]
+                pose_movie_train[i] = train[idx[i]]
                 for t in range(32):
-                    pose_man_train[i][t] = self.replace_index(pose_man_train[i][t], True)
+                    pose_movie_train[i][t] = self.replace_index(pose_movie_train[i][t], True)
 
             noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
             pose_movie_gen = self.generator.predict(noise)
@@ -165,7 +168,7 @@ class MOVIE_GAN():
             # Plot the progress
 
             print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
-            print("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss), file=f)
+            writer.writerow([epoch, d_loss[0], 100*d_loss[1], g_loss])
 
             # If at save interval => save generated image samples
             if epoch % save_interval == 0:
@@ -179,7 +182,7 @@ class MOVIE_GAN():
         pose_movie_gen = self.generator.predict(noise)#gen_img -1 - 1
 
         for t in range(32):
-            pose_movie_gen[0][t] = self.replace_index(pose_man_gen[0][t], False)
+            pose_movie_gen[0][t] = self.replace_index(pose_movie_gen[0][t], False)
 
         if not os.path.exists('./output'):
             os.mkdir('./output')
@@ -210,4 +213,4 @@ class MOVIE_GAN():
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=30001, batch_size=32, save_interval=1000)
+movie_gan.train(epochs=10001, batch_size=32, save_interval=100)
