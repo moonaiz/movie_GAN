@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
     args = args()
     input_image_folder = './images/'
-    input_annotation_folder = './annotations/'
+    input_annotation_folder = './output/annotations/'
     output_folder = './pose_check/'
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)

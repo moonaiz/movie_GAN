@@ -9,6 +9,7 @@ from keras.optimizers import Adam
 from keras.utils import to_categorical
 from tqdm import tqdm
 
+import keras.backend as K
 import cv2
 import os
 import pandas as pd
@@ -27,11 +28,12 @@ class MOVIE_GAN():
         self.coordinates = 2
         self.annotations = 18
         self.flames = 32
-        self.num_classes = 2
+        self.num_classes = 3
         self.pose_movie_shape = (self.flames, self.annotations, self.coordinates)
         self.latent_dim = 100
 
         optimizer = Adam(0.0002, 0.5)
+        losses = ['binary_crossentropy', self.mutual_info_loss]
 
         # Build and compile the discriminator
         self.discriminator, self.auxilliary = self.build_disk_and_q_net()
@@ -90,9 +92,9 @@ class MOVIE_GAN():
 
         return Model(gen_input, pose_movie)
 
-    def build_discriminator(self):
+    def build_disk_and_q_net(self):
 
-        pose_movie = Input(shape=self.pose_movie_shapea)
+        pose_movie = Input(shape=self.pose_movie_shape)
 
         model = Sequential()
         model.add(Conv2D(16, kernel_size=(3, 4), strides=(1, 2), padding='same', input_shape=self.pose_movie_shape))
@@ -103,14 +105,14 @@ class MOVIE_GAN():
         pose_embedding = model(pose_movie)
 
         #Discriminator
-        validily = Dense(1, activation='sigmoid')(pose_embedding)
+        validity = Dense(1, activation='sigmoid')(pose_embedding)
 
         #Recognition
         q_net = Dense(128, activation='relu')(pose_embedding)
         label = Dense(self.num_classes, activation='softmax')(q_net)
 
         # Return discriminator and recognition network
-        return Model(pose_movie, validity)
+        return Model(pose_movie, validity), Model(pose_movie, label)
 
     def mutual_info_loss(self, c, c_given_x):
         """The mutual information metric we aim to minimize"""
@@ -140,7 +142,7 @@ class MOVIE_GAN():
 
     def sample_generator_input(self, batch_size):
         # Generator inputs
-        sampled_noise = np.random.normal(0, 1, (batch_size, 100-self.num_classes))
+        sampled_noise = np.random.normal(0, 1, (batch_size, self.latent_dim - self.num_classes))
         sampled_labels = np.random.randint(0, self.num_classes, batch_size).reshape(-1, 1)
         sampled_labels = to_categorical(sampled_labels, num_classes=self.num_classes)
 
@@ -170,7 +172,7 @@ class MOVIE_GAN():
 
         f = open('gan_loss.csv','a')
         writer = csv.writer(f)
-        writer.writerow(['epoch','D_loss','accuracy','G_loss'])
+        writer.writerow(['epoch','D_loss','accuracy','G_loss1','G_loss2'])
 
         for epoch in range(epochs):
 
@@ -204,8 +206,8 @@ class MOVIE_GAN():
 
             # Plot the progress
 
-            print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
-            writer.writerow([epoch, d_loss[0], 100*d_loss[1], g_loss])
+            print ("%d [D loss: %.2f, acc.: %.2f%%] [Q loss: %.2f] [G loss: %.2f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss[1], g_loss[2]))
+            writer.writerow([epoch, d_loss[0], 100*d_loss[1], g_loss[1], g_loss[2]])
 
             # If at save interval => save generated image samples
             if epoch % save_interval == 0:
@@ -222,7 +224,7 @@ class MOVIE_GAN():
         if not os.path.exists(output_folder):
             os.mkdir(output_folder)
 
-        r, c = 5, 2
+        r, c = self.num_classes, self.num_classes
 
         for i in range(c):
             sampled_noise, _ = self.sample_generator_input(c)
@@ -241,7 +243,7 @@ class MOVIE_GAN():
                 for t in range(32):
                     pose_movie_gen[j][t] = self.replace_index(pose_movie_gen[j][t], False)
 
-                output_path = output_folder + "epoch_%d-%d.csv" %(epoch,int((i+1)*(j+1)))
+                output_path = output_folder + "epoch_%d(%d-%d).csv" %(epoch, int(i+1), int(j+1))
 
                 result_file = open(output_path, 'w')
                 processed_names = set()
