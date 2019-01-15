@@ -26,14 +26,16 @@ class MOVIE_GAN():
         self.coordinates = 2
         self.annotations = 18
         self.flames = 32
+        self.num_classes = 3
         self.pose_movie_shape = (self.flames, self.annotations, self.coordinates)
         self.latent_dim = 100
 
         optimizer = Adam(0.0002, 0.5)
+        losses = ['binary_crossentropy', 'sparse_categorical_crossentropy']
 
         # Build and compile the discriminator
         self.discriminator = self.build_discriminator()
-        self.discriminator.compile(loss='binary_crossentropy',
+        self.discriminator.compile(loss=losses,
             optimizer=optimizer,
             metrics=['accuracy'])
 
@@ -42,7 +44,8 @@ class MOVIE_GAN():
 
         # The generator takes noise as input and generates imgs
         z = Input(shape=(self.latent_dim,))
-        poses = self.generator(z)
+        label = Input(shape=(1,))
+        poses = self.generator([z, label])
 
         # For the combined model we will only train the generator
         self.discriminator.trainable = False
@@ -52,8 +55,8 @@ class MOVIE_GAN():
 
         # The combined model  (stacked generator and discriminator)
         # Trains the generator to fool the discriminator
-        self.combined = Model(z, valid)
-        self.combined.compile(loss='binary_crossentropy', optimizer=optimizer)
+        self.combined = Model([z, label], [valid, target_label])
+        self.combined.compile(loss=losses, optimizer=optimizer)
 
     def build_generator(self):
         model = Sequential()
@@ -75,9 +78,13 @@ class MOVIE_GAN():
         model.summary()
 
         noise = Input(shape=(self.latent_dim,))
-        pose_movie = model(noise)
+        label = Input(shape=(1,), dtype='int32')
+        label_embedding = Flatten()(Embedding(self.num_classes, 100)(label))
 
-        return Model(noise, pose_movie)
+        model_input = multiply([noise, label_embedding])
+        pose_movie = model(model_input)
+
+        return Model([noise, label], pose_movie)
 
     def build_discriminator(self):
         model = Sequential()
@@ -91,9 +98,12 @@ class MOVIE_GAN():
         model.summary()
 
         pose_movie = Input(shape=self.pose_movie_shape)
-        validity = model(pose_movie)
+        features = model(pose_movie)
 
-        return Model(pose_movie, validity)
+        validity = Dense(1, activation="sigmoid")(features)
+        label = Dense(self.num_classes+1, activation="softmax")(features)
+
+        return Model(pose_movie, [validity, label])
 
     def load_pose_cords(self, y_str, x_str):
         y_cords = json.loads(y_str)
@@ -116,46 +126,66 @@ class MOVIE_GAN():
     def train(self, epochs, batch_size=32, save_interval=50):
         #from pose_utils import load_pose_cords_from_string
         input_folder = './annotations/'
-        annotation_list = os.listdir(input_folder)
 
-        train = np.zeros((len(annotation_list), ) + self.pose_movie_shape)
+        classes = [d for d in os.listdir(input_folder) if os.path.isdir(os.path.join(input_folder, d))]
+        classes.sort()
+        class_to_idx = {classes[i]: i for i in range(len(classes))}
 
-        for i in range(len(annotation_list)):
-            df = pd.read_csv(input_folder + '%s'% annotation_list[i], sep=':')
-            df = df.sort_values('name')
+        pose_list = []
+        label_list = []
+        for label in classes:
+            label_path = os.path.join(input_folder, label)
+            data_num = len(os.listdir(label_path))
+            label_idx = class_to_idx[label]
+            label_np = np.full((data_num, 1), label_idx, dtype=np.int32)
+            label_list.append(label_np)
 
-            t = 0
+            annotation_list = os.listdir(label_path)
 
-            for index, row in df.iterrows():
-                train[i][t] = self.load_pose_cords(row['keypoints_y'], row['keypoints_x'])
-                t += 1
+            pose_np = np.zeros((len(annotation_list), ) + self.pose_movie_shape)
+            for i in range(len(annotation_list)):
+                df = pd.read_csv(label_path + '%s'% annotation_list[i], sep=':')
+                df = df.sort_values('name')
 
-        train = train / 127.5 - 1
+                t = 0
+
+                for index, row in df.iterrows():
+                    pose_np[i][t] = self.load_pose_cords(row['keypoints_y'], row['keypoints_x'])
+                    t += 1
+
+            pose_list.append(pose_np)
+
+        pose_train = np.concatenate(pose_list, axis=0)
+        label_train = np.concatenate(label_list, axis=0)
+
+        pose_train = pose_train / 127.5 - 1
 
         valid = np.ones((batch_size, 1))
         fake = np.zeros((batch_size, 1))
 
         f = open('gan_loss.csv','a')
         writer = csv.writer(f)
-        writer.writerow(['epoch','D_loss','accuracy','G_loss'])
+        writer.writerow(['epoch','D_loss','accuracy','op_accuracy','G_loss'])
 
         for epoch in range(epochs):
 
-            idx = np.random.randint(0, train.shape[0], batch_size)
+            idx = np.random.randint(0, pose_train.shape[0], batch_size)
             pose_movie_train = np.zeros((batch_size, 32, 18, 2), dtype=float)
 
             for i in range(batch_size):
-                pose_movie_train[i] = train[idx[i]]
+                pose_movie_train[i] = pose_train[idx[i]]
                 for t in range(32):
                     pose_movie_train[i][t] = self.replace_index(pose_movie_train[i][t], True)
 
             noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
-            pose_movie_gen = self.generator.predict(noise)
+            sampled_labels = np.random.randint(0, 10, (batch_size, 1))
 
+            pose_movie_gen = self.generator.predict([noise, sampled_labels])
 
+            pose_labels = label_train[idx]
             # Train the discriminator (real classified as ones and generated as zeros)
-            d_loss_real = self.discriminator.train_on_batch(pose_movie_train, valid)#valid=real
-            d_loss_fake = self.discriminator.train_on_batch(pose_movie_gen, fake)#fake
+            d_loss_real = self.discriminator.train_on_batch(pose_movie_train, [valid, pose_labels])#valid=real
+            d_loss_fake = self.discriminator.train_on_batch(pose_movie_gen, [fake, pose_labels])#fake
             d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
 
             # ---------------------
@@ -163,12 +193,10 @@ class MOVIE_GAN():
             # ---------------------
 
             # Train the generator (wants discriminator to mistake images as real)
-            g_loss = self.combined.train_on_batch(noise, valid)
+            g_loss = self.combined.train_on_batch([noise, sampled_labels], [valid, sampled_labels])
 
-            # Plot the progress
-
-            print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
-            writer.writerow([epoch, d_loss[0], 100*d_loss[1], g_loss])
+            print ("%d [D loss: %f, acc.: %.2f%%, op_acc: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[3], 100*d_loss[4], g_loss[0]))
+            writer.writerow([epoch, d_loss[0], 100*d_loss[3], 100*d_loss[4], g_loss[0]])
 
             # If at save interval => save generated image samples
             if epoch % save_interval == 0:
@@ -177,12 +205,6 @@ class MOVIE_GAN():
         f.close()
 
     def save_annotations(self, epoch):
-        r, c = 1, 1
-        noise = np.random.normal(0, 1, (r * c, self.latent_dim))
-        pose_movie_gen = self.generator.predict(noise)#gen_img -1 - 1
-
-        for t in range(32):
-            pose_movie_gen[0][t] = self.replace_index(pose_movie_gen[0][t], False)
 
         if not os.path.exists('./output'):
             os.mkdir('./output')
@@ -190,6 +212,12 @@ class MOVIE_GAN():
         output_folder = './output/annotations/'
         if not os.path.exists(output_folder):
             os.mkdir(output_folder)
+
+        r, c = 1, self.num_classes
+
+        noise = np.random.normal(0, 1, (r * c, self.latent_dim))
+        sampled_labels = np.array([num for _ in range(r) for num in range(c)])
+        pose_movie_gen = self.generator.predict([noise, sampled_labels])#gen_img -1 - 1
 
         # Rescale 0 - 1
         pose_movie_gen = 0.5 * pose_movie_gen + 0.5
@@ -199,14 +227,19 @@ class MOVIE_GAN():
 
         pose_movie_gen = pose_movie_gen.astype('int32')
 
-        output_path = output_folder + "epoch_%d.csv" % epoch
+        for i in range(c):
+            for t in range(32):
+                pose_movie_gen[0][t] = self.replace_index(pose_movie_gen[0][t], False)
 
-        result_file = open(output_path, 'w')
-        processed_names = set()
-        print('name:keypoints_y:keypoints_x',file=result_file)
+            output_path = output_folder + "epoch_%d-%d.csv" %(epoch, int(c+1))
 
-        for t in range(32):
-            print('%s.jpg: %s: %s' % ('{0:02d}'.format(t), str(list(pose_movie_gen[0, t, :, 0])), str(list(pose_movie_gen[0, t, :, 1]))), file=result_file)
+            result_file = open(output_path, 'w')
+            processed_names = set()
+            print('name:keypoints_y:keypoints_x',file=result_file)
+
+            for t in range(32):
+                print('%s.jpg: %s: %s' % ('{0:02d}'.format(t), str(list(pose_movie_gen[i, t, :, 0])), str(list(pose_movie_gen[i, t, :, 1]))), file=result_file)
+                
             result_file.flush()
 
 
