@@ -31,11 +31,10 @@ class MOVIE_GAN():
         self.latent_dim = 100
 
         optimizer = Adam(0.0002, 0.5)
-        losses = ['binary_crossentropy', 'sparse_categorical_crossentropy']
 
         # Build and compile the discriminator
         self.discriminator = self.build_discriminator()
-        self.discriminator.compile(loss=losses,
+        self.discriminator.compile(loss=['binary_crossentropy'],
             optimizer=optimizer,
             metrics=['accuracy'])
 
@@ -51,12 +50,12 @@ class MOVIE_GAN():
         self.discriminator.trainable = False
 
         # The discriminator takes generated images as input and determines validity
-        valid, target_label = self.discriminator(poses)
+        valid = self.discriminator([poses, label])
 
         # The combined model  (stacked generator and discriminator)
         # Trains the generator to fool the discriminator
-        self.combined = Model([z, label], [valid, target_label])
-        self.combined.compile(loss=losses, optimizer=optimizer)
+        self.combined = Model([z, label], valid)
+        self.combined.compile(loss=['binary_crossentropy'], optimizer=optimizer)
 
     def build_generator(self):
         model = Sequential()
@@ -89,7 +88,7 @@ class MOVIE_GAN():
     def build_discriminator(self):
         model = Sequential()
 
-        model.add(Conv2D(16, kernel_size=(3, 4), strides=(1, 2), padding='same', input_shape=self.pose_movie_shape))
+        model.add(Conv2D(16, kernel_size=(3, 4), strides=(1, 2), padding='same', input_shape=(self.flames,self.annotations, self.coordinates + self.num_classes)))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
         model.add(Flatten())
@@ -98,12 +97,13 @@ class MOVIE_GAN():
         model.summary()
 
         pose_movie = Input(shape=self.pose_movie_shape)
-        features = model(pose_movie)
+        label = Input(shape=(self.flames, self.annotations, self.num_classes), dtype='int32')
 
-        validity = Dense(1, activation="sigmoid")(features)
-        label = Dense(self.num_classes+1, activation="softmax")(features)
+        model_input = Input(shape=(self.flames,self.annotations, self.coordinates + self.num_classes))
 
-        return Model(pose_movie, [validity, label])
+        validity = model(model_input)
+
+        return Model([pose_movie, label], validity)
 
     def load_pose_cords(self, y_str, x_str):
         y_cords = json.loads(y_str)
@@ -122,6 +122,11 @@ class MOVIE_GAN():
                 stick_new[f][:] = stick_old[t][:]
 
         return stick_new
+
+    def make_categorical(y_bt,cat_dim):
+        one_hot = np.zeros((y_bt.shape[0], cat_dim))
+        one_hot[np.arange(y_bt.shape[0]), y_bt] = 1
+        return one_hot
 
     def train(self, epochs, batch_size=32, save_interval=50):
         #from pose_utils import load_pose_cords_from_string
@@ -166,7 +171,7 @@ class MOVIE_GAN():
 
         f = open('gan_loss.csv','a')
         writer = csv.writer(f)
-        writer.writerow(['epoch','D_loss','accuracy','op_accuracy','G_loss'])
+        writer.writerow(['epoch','D_loss','accuracy','G_loss'])
 
         for epoch in range(epochs):
 
@@ -179,26 +184,32 @@ class MOVIE_GAN():
                     pose_movie_train[i][t] = self.replace_index(pose_movie_train[i][t], True)
 
             noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
-            sampled_labels = np.random.randint(0, self.num_classes, (batch_size, 1))
-
-            pose_movie_gen = self.generator.predict([noise, sampled_labels])
 
             pose_labels = label_train[idx]
-            fake_labels = self.num_classes * np.ones(pose_labels.shape)
+
+            pose_movie_gen = self.generator.predict([noise, pose_labels])
+
+            ol = np.asarray(func.make_categorical(pose_labels, len(classes)), dtype=np.float32)
+            ol = ol.reshape(pose_labels.shape[0], len(classes), 1, 1)
+            k = xp.ones((pose_labels.shape[0], len(classes), self.flames, self.annotations), dtype=np.float32)
+            k = k * ol
+
+            pose_movie_train = np.concatenate([k, pose_movie_train], axis=0)
+            pose_movie_gen = np.concatenate([k, pose_movie_gen], axis=0)
             # Train the discriminator (real classified as ones and generated as zeros)
-            d_loss_real = self.discriminator.train_on_batch(pose_movie_train, [valid, pose_labels])#valid=real
-            d_loss_fake = self.discriminator.train_on_batch(pose_movie_gen, [fake, fake_labels])#fake
+            d_loss_real = self.discriminator.train_on_batch(pose_movie_train, valid)#valid=real
+            d_loss_fake = self.discriminator.train_on_batch(pose_movie_gen, fake)#fake
             d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
 
             # ---------------------
             #  Train Generator
             # ---------------------
-
+            sampled_labels = np.random.randint(0, self.num_classes, batch_size).reshape(-1, 1)
             # Train the generator (wants discriminator to mistake images as real)
-            g_loss = self.combined.train_on_batch([noise, sampled_labels], [valid, sampled_labels])
+            g_loss = self.combined.train_on_batch([noise, sampled_labels], valid)
 
-            print ("%d [D loss: %f, acc.: %.2f%%, op_acc: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[3], 100*d_loss[4], g_loss[0]))
-            writer.writerow([epoch, d_loss[0], 100*d_loss[3], 100*d_loss[4], g_loss[0]])
+            print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
+            writer.writerow([epoch, d_loss[0], 100*d_loss[1], g_loss])
 
             # If at save interval => save generated image samples
             if epoch % save_interval == 0:
@@ -248,4 +259,4 @@ class MOVIE_GAN():
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=10001, batch_size=32, save_interval=100)
+movie_gan.train(epochs=301, batch_size=32, save_interval=100)

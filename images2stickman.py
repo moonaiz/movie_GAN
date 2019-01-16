@@ -204,7 +204,7 @@ if __name__ == "__main__":
     args = args()
     model = load_model(args.pose_estimator)
     count = 0
-    input_folder = './images/'
+    input_folder = './R-hunds_up_images/'
     output_folder = './annotations/'
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
