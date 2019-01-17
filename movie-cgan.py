@@ -1,6 +1,6 @@
 from __future__ import print_function, division
 
-from keras.layers import Input, Dense, Reshape, Flatten, Dropout, multiply
+from keras.layers import Input, Dense, Reshape, Flatten, Dropout, concatenate, multiply
 from keras.layers import BatchNormalization, Activation, Embedding
 from keras.layers.advanced_activations import LeakyReLU
 from keras.layers.convolutional import UpSampling2D, Conv2D
@@ -43,24 +43,25 @@ class MOVIE_GAN():
 
         # The generator takes noise as input and generates imgs
         z = Input(shape=(self.latent_dim,))
-        label = Input(shape=(1,))
+        label = Input(shape=(self.num_classes,))
         poses = self.generator([z, label])
 
         # For the combined model we will only train the generator
         self.discriminator.trainable = False
+        pose_label = Input(shape=(self.flames, self.annotations, self.num_classes))
 
         # The discriminator takes generated images as input and determines validity
-        valid = self.discriminator([poses, label])
+        valid = self.discriminator([poses, pose_label])
 
         # The combined model  (stacked generator and discriminator)
         # Trains the generator to fool the discriminator
-        self.combined = Model([z, label], valid)
+        self.combined = Model([z, label, pose_label], valid)
         self.combined.compile(loss=['binary_crossentropy'], optimizer=optimizer)
 
     def build_generator(self):
         model = Sequential()
 
-        model.add(Dense(32 * 128 * 64, activation = "tanh", input_dim=self.latent_dim))
+        model.add(Dense(32 * 128 * 64, activation = "tanh", input_dim=self.latent_dim + self.num_classes))
         model.add(Reshape((32, 128 ,64)))
         model.add(Conv2D(64, kernel_size=(3, 4), strides=(1, 2), padding='same'))
         model.add(BatchNormalization())
@@ -77,10 +78,9 @@ class MOVIE_GAN():
         model.summary()
 
         noise = Input(shape=(self.latent_dim,))
-        label = Input(shape=(1,), dtype='int32')
-        label_embedding = Flatten()(Embedding(self.num_classes, 100)(label))
+        label = Input(shape=(self.num_classes,))
 
-        model_input = multiply([noise, label_embedding])
+        model_input = concatenate([noise, label], axis=1)
         pose_movie = model(model_input)
 
         return Model([noise, label], pose_movie)
@@ -97,9 +97,9 @@ class MOVIE_GAN():
         model.summary()
 
         pose_movie = Input(shape=self.pose_movie_shape)
-        label = Input(shape=(self.flames, self.annotations, self.num_classes), dtype='int32')
+        label = Input(shape=(self.flames, self.annotations, self.num_classes), dtype='float32')
 
-        model_input = Input(shape=(self.flames,self.annotations, self.coordinates + self.num_classes))
+        model_input = concatenate([pose_movie, label], axis=3)
 
         validity = model(model_input)
 
@@ -111,19 +111,7 @@ class MOVIE_GAN():
         cords = np.concatenate([np.expand_dims(y_cords, -1), np.expand_dims(x_cords, -1)], axis=1)
         return cords.astype(np.int)
 
-    def replace_index(self, stickman, flag):
-        stick_old = stickman
-        stick_new = np.zeros((18,2), dtype = float)
-        for f, t in OLD2NEW:
-
-            if flag == True:
-                stick_new[t][:] = stick_old[f][:]
-            else:
-                stick_new[f][:] = stick_old[t][:]
-
-        return stick_new
-
-    def make_categorical(y_bt,cat_dim):
+    def make_categorical(self, y_bt,cat_dim):
         one_hot = np.zeros((y_bt.shape[0], cat_dim))
         one_hot[np.arange(y_bt.shape[0]), y_bt] = 1
         return one_hot
@@ -134,7 +122,10 @@ class MOVIE_GAN():
 
         classes = [d for d in os.listdir(input_folder) if os.path.isdir(os.path.join(input_folder, d))]
         classes.sort()
+        global class_to_idx
         class_to_idx = {classes[i]: i for i in range(len(classes))}
+        global idx_to_class
+        idx_to_class = {v: k for k, v in class_to_idx.items()}
 
         pose_list = []
         label_list = []
@@ -176,37 +167,29 @@ class MOVIE_GAN():
         for epoch in range(epochs):
 
             idx = np.random.randint(0, pose_train.shape[0], batch_size)
-            pose_movie_train = np.zeros((batch_size, 32, 18, 2), dtype=float)
-
-            for i in range(batch_size):
-                pose_movie_train[i] = pose_train[idx[i]]
-                for t in range(32):
-                    pose_movie_train[i][t] = self.replace_index(pose_movie_train[i][t], True)
+            pose_movie_train = pose_train[idx]
 
             noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
 
             pose_labels = label_train[idx]
+            pose_labels_onehot = np.asarray(self.make_categorical(pose_labels, len(classes)), dtype=np.float32)
 
-            pose_movie_gen = self.generator.predict([noise, pose_labels])
+            pose_movie_gen = self.generator.predict([noise, pose_labels_onehot])
 
-            ol = np.asarray(func.make_categorical(pose_labels, len(classes)), dtype=np.float32)
-            ol = ol.reshape(pose_labels.shape[0], len(classes), 1, 1)
-            k = xp.ones((pose_labels.shape[0], len(classes), self.flames, self.annotations), dtype=np.float32)
+            ol = pose_labels_onehot.reshape(batch_size, 1, 1, len(classes))
+            k = np.ones((batch_size, self.flames, self.annotations, len(classes)), dtype=np.float32)
             k = k * ol
 
-            pose_movie_train = np.concatenate([k, pose_movie_train], axis=0)
-            pose_movie_gen = np.concatenate([k, pose_movie_gen], axis=0)
             # Train the discriminator (real classified as ones and generated as zeros)
-            d_loss_real = self.discriminator.train_on_batch(pose_movie_train, valid)#valid=real
-            d_loss_fake = self.discriminator.train_on_batch(pose_movie_gen, fake)#fake
+            d_loss_real = self.discriminator.train_on_batch([pose_movie_train, k], valid)#valid=real
+            d_loss_fake = self.discriminator.train_on_batch([pose_movie_gen, k], fake)#fake
             d_loss = 0.5 * np.add(d_loss_real, d_loss_fake)
 
             # ---------------------
             #  Train Generator
             # ---------------------
-            sampled_labels = np.random.randint(0, self.num_classes, batch_size).reshape(-1, 1)
             # Train the generator (wants discriminator to mistake images as real)
-            g_loss = self.combined.train_on_batch([noise, sampled_labels], valid)
+            g_loss = self.combined.train_on_batch([noise, pose_labels_onehot, k], valid)
 
             print ("%d [D loss: %f, acc.: %.2f%%] [G loss: %f]" % (epoch, d_loss[0], 100*d_loss[1], g_loss))
             writer.writerow([epoch, d_loss[0], 100*d_loss[1], g_loss])
@@ -230,7 +213,9 @@ class MOVIE_GAN():
 
         noise = np.random.normal(0, 1, (r * c, self.latent_dim))
         sampled_labels = np.array([num for _ in range(r) for num in range(c)])
-        pose_movie_gen = self.generator.predict([noise, sampled_labels])#gen_img -1 - 1
+        sampled_labels_onehot = np.asarray(self.make_categorical(sampled_labels, self.num_classes), dtype=np.float32)
+
+        pose_movie_gen = self.generator.predict([noise, sampled_labels_onehot])#gen_img -1 - 1
 
         # Rescale 0 - 1
         pose_movie_gen = 0.5 * pose_movie_gen + 0.5
@@ -241,10 +226,8 @@ class MOVIE_GAN():
         pose_movie_gen = pose_movie_gen.astype('int32')
 
         for i in range(c):
-            for t in range(32):
-                pose_movie_gen[i][t] = self.replace_index(pose_movie_gen[i][t], False)
 
-            output_path = output_folder + "epoch_%d-%d.csv" %(epoch, int(i+1))
+            output_path = output_folder + "epoch_%d-%s.csv" %(epoch, idx_to_class[i])
 
             result_file = open(output_path, 'w')
             processed_names = set()
@@ -259,4 +242,4 @@ class MOVIE_GAN():
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=301, batch_size=32, save_interval=100)
+movie_gan.train(epochs=15001, batch_size=32, save_interval=100)
