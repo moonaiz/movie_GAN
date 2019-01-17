@@ -101,18 +101,6 @@ class MOVIE_GAN():
         cords = np.concatenate([np.expand_dims(y_cords, -1), np.expand_dims(x_cords, -1)], axis=1)
         return cords.astype(np.int)
 
-    def replace_index(self, stickman, flag):
-        stick_old = stickman
-        stick_new = np.zeros((18,2), dtype = float)
-        for f, t in OLD2NEW:
-
-            if flag == True:
-                stick_new[t][:] = stick_old[f][:]
-            else:
-                stick_new[f][:] = stick_old[t][:]
-
-        return stick_new
-
     def train(self, epochs, batch_size=32, save_interval=50):
         #from pose_utils import load_pose_cords_from_string
         input_folder = './annotations/'
@@ -146,8 +134,7 @@ class MOVIE_GAN():
 
             for i in range(batch_size):
                 pose_movie_train[i] = train[idx[i]]
-                for t in range(32):
-                    pose_movie_train[i][t] = self.replace_index(pose_movie_train[i][t], True)
+
 
             noise = np.random.normal(0, 1, (batch_size, self.latent_dim))
             pose_movie_gen = self.generator.predict(noise)
@@ -180,9 +167,6 @@ class MOVIE_GAN():
         r, c = 1, 1
         noise = np.random.normal(0, 1, (r * c, self.latent_dim))
         pose_movie_gen = self.generator.predict(noise)#gen_img -1 - 1
-
-        for t in range(32):
-            pose_movie_gen[0][t] = self.replace_index(pose_movie_gen[0][t], False)
 
         if not os.path.exists('./output'):
             os.mkdir('./output')
