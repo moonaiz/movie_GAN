@@ -160,7 +160,7 @@ class MOVIE_GAN():
         valid = np.ones((batch_size, 1))
         fake = np.zeros((batch_size, 1))
 
-        f = open('gan_loss.csv','a')
+        f = open('gan_loss.csv','w')
         writer = csv.writer(f)
         writer.writerow(['epoch','D_loss','accuracy','G_loss'])
 

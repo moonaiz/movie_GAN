@@ -123,7 +123,7 @@ class MOVIE_GAN():
         valid = np.ones((batch_size, 1))
         fake = np.zeros((batch_size, 1))
 
-        f = open('gan_loss.csv','a')
+        f = open('gan_loss.csv','w')
         writer = csv.writer(f)
         writer.writerow(['epoch','D_loss','accuracy','G_loss'])
 
@@ -164,7 +164,7 @@ class MOVIE_GAN():
         f.close()
 
     def save_annotations(self, epoch):
-        r, c = 1, 1
+        r, c = 3, 3
         noise = np.random.normal(0, 1, (r * c, self.latent_dim))
         pose_movie_gen = self.generator.predict(noise)#gen_img -1 - 1
 
@@ -183,18 +183,18 @@ class MOVIE_GAN():
 
         pose_movie_gen = pose_movie_gen.astype('int32')
 
-        output_path = output_folder + "epoch_%d.csv" % epoch
 
-        result_file = open(output_path, 'w')
-        processed_names = set()
-        print('name:keypoints_y:keypoints_x',file=result_file)
-
-        for t in range(32):
-            print('%s.jpg: %s: %s' % ('{0:02d}'.format(t), str(list(pose_movie_gen[0, t, :, 0])), str(list(pose_movie_gen[0, t, :, 1]))), file=result_file)
-            result_file.flush()
+        for i in range(r * c):
+            output_path = output_folder + "epoch_%d-%d.csv" %(epoch, i)
+            result_file = open(output_path, 'w')
+            processed_names = set()
+            print('name:keypoints_y:keypoints_x',file=result_file)
+            for t in range(32):
+                print('%s.jpg: %s: %s' % ('{0:02d}'.format(t), str(list(pose_movie_gen[i, t, :, 0])), str(list(pose_movie_gen[i, t, :, 1]))), file=result_file)
+                result_file.flush()
 
 
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=10001, batch_size=32, save_interval=100)
+movie_gan.train(epochs=5001, batch_size=32, save_interval=100)
