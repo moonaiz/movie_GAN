@@ -27,7 +27,7 @@ class MOVIE_GAN():
         self.annotations = 18
         self.flames = 32
         self.pose_movie_shape = (self.flames, self.annotations, self.coordinates)
-        self.latent_dim = 100
+        self.latent_dim = 120
 
         optimizer = Adam(0.0002, 0.5)
 
@@ -197,4 +197,4 @@ class MOVIE_GAN():
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=5001, batch_size=32, save_interval=100)
+movie_gan.train(epochs=10001, batch_size=32, save_interval=100)

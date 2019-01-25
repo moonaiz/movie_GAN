@@ -28,7 +28,7 @@ class MOVIE_GAN():
         self.flames = 32
         self.num_classes = 2
         self.pose_movie_shape = (self.flames, self.annotations, self.coordinates)
-        self.latent_dim = 100
+        self.latent_dim = 80
 
         optimizer = Adam(0.0002, 0.5)
 
@@ -177,8 +177,10 @@ class MOVIE_GAN():
             pose_movie_gen = self.generator.predict([noise, pose_labels_onehot])
 
             ol = pose_labels_onehot.reshape(batch_size, 1, 1, len(classes))
+            print(ol)
             k = np.ones((batch_size, self.flames, self.annotations, len(classes)), dtype=np.float32)
             k = k * ol
+            print(k)
 
             # Train the discriminator (real classified as ones and generated as zeros)
             d_loss_real = self.discriminator.train_on_batch([pose_movie_train, k], valid)#valid=real
@@ -242,4 +244,4 @@ class MOVIE_GAN():
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=15001, batch_size=32, save_interval=100)
+movie_gan.train(epochs=1, batch_size=3, save_interval=100)
