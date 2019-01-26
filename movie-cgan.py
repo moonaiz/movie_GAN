@@ -113,7 +113,8 @@ class MOVIE_GAN():
 
     def make_categorical(self, y_bt,cat_dim):
         one_hot = np.zeros((y_bt.shape[0], cat_dim))
-        one_hot[np.arange(y_bt.shape[0]), y_bt] = 1
+        for i in range(y_bt.shape[0]):
+            one_hot[i] = np.eye(cat_dim)[y_bt[i][0]]
         return one_hot
 
     def train(self, epochs, batch_size=32, save_interval=50):
@@ -177,10 +178,8 @@ class MOVIE_GAN():
             pose_movie_gen = self.generator.predict([noise, pose_labels_onehot])
 
             ol = pose_labels_onehot.reshape(batch_size, 1, 1, len(classes))
-            print(ol)
             k = np.ones((batch_size, self.flames, self.annotations, len(classes)), dtype=np.float32)
             k = k * ol
-            print(k)
 
             # Train the discriminator (real classified as ones and generated as zeros)
             d_loss_real = self.discriminator.train_on_batch([pose_movie_train, k], valid)#valid=real
@@ -215,6 +214,7 @@ class MOVIE_GAN():
 
         noise = np.random.normal(0, 1, (r * c, self.latent_dim))
         sampled_labels = np.array([num for _ in range(r) for num in range(c)])
+        sampled_labels = sampled_labels[:, np.newaxis]
         sampled_labels_onehot = np.asarray(self.make_categorical(sampled_labels, self.num_classes), dtype=np.float32)
 
         pose_movie_gen = self.generator.predict([noise, sampled_labels_onehot])#gen_img -1 - 1
