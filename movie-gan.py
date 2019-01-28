@@ -27,7 +27,7 @@ class MOVIE_GAN():
         self.annotations = 18
         self.flames = 32
         self.pose_movie_shape = (self.flames, self.annotations, self.coordinates)
-        self.latent_dim = 120
+        self.latent_dim = 100
 
         optimizer = Adam(0.0002, 0.5)
 

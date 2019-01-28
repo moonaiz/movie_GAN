@@ -28,7 +28,7 @@ class MOVIE_GAN():
         self.flames = 32
         self.num_classes = 2
         self.pose_movie_shape = (self.flames, self.annotations, self.coordinates)
-        self.latent_dim = 80
+        self.latent_dim = 98
 
         optimizer = Adam(0.0002, 0.5)
 
@@ -88,7 +88,7 @@ class MOVIE_GAN():
     def build_discriminator(self):
         model = Sequential()
 
-        model.add(Conv2D(16, kernel_size=(3, 4), strides=(1, 2), padding='same', input_shape=(self.flames,self.annotations, self.coordinates + self.num_classes)))
+        model.add(Conv2D(18, kernel_size=(3, 4), strides=(1, 2), padding='same', input_shape=(self.flames,self.annotations, self.coordinates + self.num_classes)))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
         model.add(Flatten())
@@ -244,4 +244,4 @@ class MOVIE_GAN():
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=1, batch_size=3, save_interval=100)
+movie_gan.train(epochs=10001, batch_size=32, save_interval=100)
