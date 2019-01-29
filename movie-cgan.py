@@ -88,7 +88,7 @@ class MOVIE_GAN():
     def build_discriminator(self):
         model = Sequential()
 
-        model.add(Conv2D(18, kernel_size=(3, 4), strides=(1, 2), padding='same', input_shape=(self.flames,self.annotations, self.coordinates + self.num_classes)))
+        model.add(Conv2D(20, kernel_size=(3, 4), strides=(1, 2), padding='same', input_shape=(self.flames,self.annotations, self.coordinates + self.num_classes)))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
         model.add(Flatten())
@@ -210,9 +210,10 @@ class MOVIE_GAN():
         if not os.path.exists(output_folder):
             os.mkdir(output_folder)
 
-        r, c = 1, self.num_classes
+        r, c = 2, self.num_classes
 
-        noise = np.random.normal(0, 1, (r * c, self.latent_dim))
+        noise = np.random.normal(0, 1, (r, self.latent_dim))
+        noise = noise.repeat(c, axis=0)
         sampled_labels = np.array([num for _ in range(r) for num in range(c)])
         sampled_labels = sampled_labels[:, np.newaxis]
         sampled_labels_onehot = np.asarray(self.make_categorical(sampled_labels, self.num_classes), dtype=np.float32)
@@ -227,9 +228,9 @@ class MOVIE_GAN():
 
         pose_movie_gen = pose_movie_gen.astype('int32')
 
-        for i in range(c):
+        for i in range(r * c):
 
-            output_path = output_folder + "epoch_%d-%s.csv" %(epoch, idx_to_class[i])
+            output_path = output_folder + "epoch_%d-%s-%d.csv" %(epoch, idx_to_class[i%r], i//2)
 
             result_file = open(output_path, 'w')
             processed_names = set()
