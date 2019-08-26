@@ -88,7 +88,7 @@ class MOVIE_GAN():
     def build_discriminator(self):
         model = Sequential()
 
-        model.add(Conv2D(20, kernel_size=(3, 4), strides=(1, 2), padding='same', input_shape=(self.flames,self.annotations, self.coordinates + self.num_classes)))
+        model.add(Conv2D(24, kernel_size=(3, 4), strides=(1, 2), padding='same', input_shape=(self.flames,self.annotations, self.coordinates + self.num_classes)))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
         model.add(Flatten())
