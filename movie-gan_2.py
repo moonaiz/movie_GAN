@@ -16,9 +16,10 @@ import csv
 
 import numpy as np
 
-OLD2NEW = [[2,0], [3,1], [4,2], [5,3], [6,4], [7,5], [8,6], [9,7],
-            [10,8], [11,9], [12,10], [13,11], [1,15], [14,13], [15,14],
-            [0,12], [16,16], [17,17]]
+LIMB_SEQ = [[1,2], [1,5], [2,3], [3,4], [5,6], [6,7], [1,8], [8,9],
+           [9,10], [1,11], [11,12], [12,13], [1,0], [0,14], [14,16],
+           [0,15], [15,17], [2,16], [5,17]]
+
 
 class MOVIE_GAN():
     def __init__(self):
@@ -54,6 +55,9 @@ class MOVIE_GAN():
         # Trains the generator to fool the discriminator
         self.combined = Model(z, valid)
         self.combined.compile(loss='binary_crossentropy', optimizer=optimizer)
+
+    def proportion(self, poses):
+        return proportion
 
     def build_generator(self):
         model = Sequential()
