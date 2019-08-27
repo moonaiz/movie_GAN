@@ -44,7 +44,7 @@ def image_shape_fix(input_img):
 
 if __name__ == "__main__":
  input_dir = './data/'
- output_dir = './images/'
+ output_dir = './dance_images/'
  if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 
