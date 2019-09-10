@@ -118,6 +118,21 @@ class MOVIE_GAN():
                 train[i][t] = self.load_pose_cords(row['keypoints_y'], row['keypoints_x'])
                 t += 1
 
+#train data fitting
+
+        for i in range(len(annotation_list)):
+            for j in range(self.flames):
+                for k in range(self.annotations):
+                    for l in range(self.coordinates):
+
+                        if train[i][j][k][l] == -1:
+                            if l == 0:
+                                train[i][j][k][0] = (train[i][j][k][1] + train[i][j][k][2])/2
+                            else if not l == self.flames - 1:
+                                train[i][j][k][l] = (train[i][j][k][l-1] + train[i][j][k][l+1])/2
+                            else:
+                                train[i][j][k][l] = (train[i][j][k][l-1] + train[i][j][k][l-2])/2
+
         train = train / 127.5 - 1
 
         valid = np.ones((batch_size, 1))
@@ -171,7 +186,7 @@ class MOVIE_GAN():
         if not os.path.exists('./output'):
             os.mkdir('./output')
 
-        output_folder = './output/dance_annotations2/'
+        output_folder = './output/dance_annotations3/'
         if not os.path.exists(output_folder):
             os.mkdir(output_folder)
 
@@ -197,4 +212,4 @@ class MOVIE_GAN():
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=10001, batch_size=32, save_interval=500)
+movie_gan.train(epochs=10001, batch_size=32, save_interval=100)
