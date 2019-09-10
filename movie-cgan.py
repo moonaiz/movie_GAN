@@ -119,7 +119,7 @@ class MOVIE_GAN():
 
     def train(self, epochs, batch_size=32, save_interval=50):
         #from pose_utils import load_pose_cords_from_string
-        input_folder = './annotations/'
+        input_folder = './c_annotations/'
 
         classes = [d for d in os.listdir(input_folder) if os.path.isdir(os.path.join(input_folder, d))]
         classes.sort()
