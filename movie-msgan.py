@@ -13,6 +13,7 @@ import os
 import pandas as pd
 import json
 import csv
+import keras.backend as K
 
 import numpy as np
 
@@ -41,18 +42,21 @@ class MOVIE_GAN():
         self.generator = self.build_generator()
 
         # The generator takes noise as input and generates imgs
-        z = Input(shape=(self.latent_dim,))
-        poses = self.generator(z)
+        z = Input(shape=(2,self.latent_dim))
+        gen1 = self.generator(z[0])
+        gen2 = self.generator(z[1])
 
         # For the combined model we will only train the generator
         self.discriminator.trainable = False
 
         # The discriminator takes generated images as input and determines validity
-        valid = self.discriminator(poses)
+        valid = self.discriminator(gen2)
+
+        new_pred = valid + (abs(gen1-gen2)/abs(z1-z2))
 
         # The combined model  (stacked generator and discriminator)
         # Trains the generator to fool the discriminator
-        self.combined = Model(z, valid)
+        self.combined = Model(z, new_pred)
         self.combined.compile(loss='binary_crossentropy', optimizer=optimizer)
 
     def build_generator(self):
