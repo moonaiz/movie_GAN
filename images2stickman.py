@@ -204,8 +204,8 @@ if __name__ == "__main__":
     args = args()
     model = load_model(args.pose_estimator)
     count = 0
-    input_folder = './dance_images/'
-    output_folder = './dance_annotations/'
+    input_folder = './images/walk2/'
+    output_folder = './annotations/walk2/'
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 

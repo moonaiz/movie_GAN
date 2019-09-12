@@ -43,8 +43,8 @@ def image_shape_fix(input_img):
  return reshape_img
 
 if __name__ == "__main__":
- input_dir = './data/'
- output_dir = './dance_images/'
+ input_dir = './data/walk2/'
+ output_dir = './images/walk2/'
  if not os.path.exists(output_dir):
     os.makedirs(output_dir)
 

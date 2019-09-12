@@ -103,7 +103,7 @@ class MOVIE_GAN():
 
     def train(self, epochs, batch_size=32, save_interval=50):
         #from pose_utils import load_pose_cords_from_string
-        input_folder = './dance_annotations/'
+        input_folder = './annotations/walk2/'
         annotation_list = os.listdir(input_folder)
 
         train = np.zeros((len(annotation_list), ) + self.pose_movie_shape)
@@ -117,6 +117,21 @@ class MOVIE_GAN():
             for index, row in df.iterrows():
                 train[i][t] = self.load_pose_cords(row['keypoints_y'], row['keypoints_x'])
                 t += 1
+
+#train data fitting
+
+        for i in range(len(annotation_list)):
+            for j in range(self.flames):
+                for k in range(self.annotations):
+                    for l in range(self.coordinates):
+
+                        if train[i,j,k,l] == -1:
+                            if j == 0:
+                                train[i,j,k,l] = (train[i,j+1,k,l] + train[i,j+2,k,l])/2
+                            elif not j == self.flames - 1:
+                                train[i,j,k,l] = (train[i,j-1,k,l] + train[i,j+1,k,l])/2
+                            else:
+                                train[i,j,k,l] = (train[i,j-1,k,l] + train[i,j-2,k,l])/2
 
         train = train / 127.5 - 1
 
@@ -171,7 +186,7 @@ class MOVIE_GAN():
         if not os.path.exists('./output'):
             os.mkdir('./output')
 
-        output_folder = './output/dance_annotations2/'
+        output_folder = './output/walk2_annotations/'
         if not os.path.exists(output_folder):
             os.mkdir(output_folder)
 
