@@ -14,6 +14,7 @@ import pandas as pd
 import json
 import csv
 import keras.backend as K
+import tensorflow as tf
 
 import numpy as np
 
@@ -31,7 +32,7 @@ class MOVIE_GAN():
         self.flames = 32
         self.pose_movie_shape = (self.flames, self.annotations, self.coordinates)
         self.latent_dim = 100
-        self.msgan_parameter = 0.1
+        self.msgan_parameter = 0.00001
 
         optimizer = Adam(0.0002, 0.5)
 
@@ -73,35 +74,29 @@ class MOVIE_GAN():
 
     def msgan_loss(self, args):
 
-        '''
         z1 = args[0]
         z2 = args[1]
         poses1 = args[2]
         poses2 = args[3]
         valid = args[4]
 
-        dist = self.compute_poses_distance(poses1, poses2) / np.linalg.norm(z1-z2)
+        #dist = self.compute_poses_distance(poses1, poses2) / np.linalg.norm(z1-z2)
+        merge1 = tf.pow(tf.subtract(z1,z2),2)
+        dist1 = tf.reduce_sum(merge1)
+
+        merge2 = tf.pow(tf.subtract(poses1,poses2),2)
+        dist2 = tf.reduce_sum(merge2)
+
+        dist = dist1 + dist2
+
+        print(dist)
 
         loss = self.msgan_parameter * dist
         loss += valid
-        '''
 
-        valid = args[4]
-        y_true = K.ones_like(valid)
+        y_true = K.ones_like(loss)
 
-        return K.binary_crossentropy(valid, y_true)
-
-
-    def compute_poses_distance(self, gen1, gen2):
-
-        dist = 0
-
-        for i in range(self.flames):
-            for j in range(self.annotations):
-                for k in range(self.coordinates):
-                    dist += abs(gen1[i,j,k] - gen2[i,j,k])
-
-        return dist
+        return K.binary_crossentropy(loss, y_true)
 
     def build_generator(self):
         model = Sequential()
@@ -151,7 +146,7 @@ class MOVIE_GAN():
 
     def train(self, epochs, batch_size=32, save_interval=50):
         #from pose_utils import load_pose_cords_from_string
-        input_folder = './annotations/walk2/'
+        input_folder = './annotations/left/'
         annotation_list = os.listdir(input_folder)
 
         train = np.zeros((len(annotation_list), ) + self.pose_movie_shape)
