@@ -32,7 +32,7 @@ class MOVIE_GAN():
         self.flames = 32
         self.pose_movie_shape = (self.flames, self.annotations, self.coordinates)
         self.latent_dim = 100
-        self.msgan_parameter = 0.00001
+        self.msgan_parameter = 0.000005
 
         optimizer = Adam(0.0002, 0.5)
 
@@ -60,7 +60,6 @@ class MOVIE_GAN():
         # The discriminator takes generated images as input and determines validity
         valid = self.discriminator(poses1)
 
-        #new_pred = valid + self.msgan_parameter * (self.compute_poses_distance(gen1,gen2)/abs(z1-z2))
 
         # The combined model  (stacked generator and discriminator)
         # Trains the generator to fool the discriminator
@@ -68,7 +67,8 @@ class MOVIE_GAN():
         loss = Lambda(self.msgan_loss, output_shape = (1,), name = "msgan_loss")([z1,z2,poses1,poses2,valid])
         self.combined = Model([z1,z2],loss)
 
-        self.combined.compile(loss={"msgan_loss" : lambda y_true, y_pred : y_pred},
+        #self.combined.compile(loss={"msgan_loss" : lambda y_true, y_pred : y_pred,
+        self.combined.compile(loss='binary_crossentropy',
             optimizer=optimizer,
             metrics=['accuracy'])
 
@@ -80,23 +80,23 @@ class MOVIE_GAN():
         poses2 = args[3]
         valid = args[4]
 
-        #dist = self.compute_poses_distance(poses1, poses2) / np.linalg.norm(z1-z2)
+
         merge1 = tf.pow(tf.subtract(z1,z2),2)
         dist1 = tf.reduce_sum(merge1)
 
         merge2 = tf.pow(tf.subtract(poses1,poses2),2)
         dist2 = tf.reduce_sum(merge2)
 
-        dist = dist1 + dist2
-
-        print(dist)
+        dist = dist1 / dist2
 
         loss = self.msgan_parameter * dist
+
         loss += valid
 
-        y_true = K.ones_like(loss)
+        #y_true = K.ones_like(loss)
 
-        return K.binary_crossentropy(loss, y_true)
+        #return K.binary_crossentropy(loss, y_true)
+        return loss
 
     def build_generator(self):
         model = Sequential()
@@ -146,7 +146,7 @@ class MOVIE_GAN():
 
     def train(self, epochs, batch_size=32, save_interval=50):
         #from pose_utils import load_pose_cords_from_string
-        input_folder = './annotations/left/'
+        input_folder = './annotations/walk2/'
         annotation_list = os.listdir(input_folder)
 
         train = np.zeros((len(annotation_list), ) + self.pose_movie_shape)
@@ -257,4 +257,4 @@ class MOVIE_GAN():
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=501, batch_size=32, save_interval=500)
+movie_gan.train(epochs=6001, batch_size=32, save_interval=500)
