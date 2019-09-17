@@ -10,6 +10,7 @@ from tqdm import tqdm
 
 import cv2
 import os
+import math
 import pandas as pd
 import json
 import csv
@@ -24,6 +25,8 @@ OLD2NEW = [[2,0], [3,1], [4,2], [5,3], [6,4], [7,5], [8,6], [9,7],
             [10,8], [11,9], [12,10], [13,11], [1,15], [14,13], [15,14],
             [0,12], [16,16], [17,17]]
 
+e = math.e
+
 class MOVIE_GAN():
     def __init__(self):
         #Input shape
@@ -32,7 +35,7 @@ class MOVIE_GAN():
         self.flames = 32
         self.pose_movie_shape = (self.flames, self.annotations, self.coordinates)
         self.latent_dim = 100
-        self.msgan_parameter = 0.000005
+        self.msgan_parameter = 0.07
 
         optimizer = Adam(0.0002, 0.5)
 
@@ -87,16 +90,17 @@ class MOVIE_GAN():
         merge2 = tf.pow(tf.subtract(poses1,poses2),2)
         dist2 = tf.reduce_sum(merge2)
 
-        dist = dist1 / dist2
+        dist = (100/1152) * (dist2 / dist1) - 1
 
-        loss = self.msgan_parameter * dist
+        dist = self.sigmoid(dist)
 
-        loss += valid
+        loss =(1 - self.msgan_parameter) * valid + self.msgan_parameter * dist
 
-        #y_true = K.ones_like(loss)
-
-        #return K.binary_crossentropy(loss, y_true)
         return loss
+
+    def sigmoid(self,a):
+        s = 1 / (1 + e**-a)
+        return s
 
     def build_generator(self):
         model = Sequential()
@@ -146,7 +150,7 @@ class MOVIE_GAN():
 
     def train(self, epochs, batch_size=32, save_interval=50):
         #from pose_utils import load_pose_cords_from_string
-        input_folder = './annotations/walk2/'
+        input_folder = './annotations/walk3/'
         annotation_list = os.listdir(input_folder)
 
         train = np.zeros((len(annotation_list), ) + self.pose_movie_shape)
@@ -231,7 +235,7 @@ class MOVIE_GAN():
         if not os.path.exists('./output'):
             os.mkdir('./output')
 
-        output_folder = './output/msgans/'
+        output_folder = './output/msgans_walk3_0.07/'
         if not os.path.exists(output_folder):
             os.mkdir(output_folder)
 
@@ -257,4 +261,4 @@ class MOVIE_GAN():
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=6001, batch_size=32, save_interval=500)
+movie_gan.train(epochs=4001, batch_size=32, save_interval=500)
