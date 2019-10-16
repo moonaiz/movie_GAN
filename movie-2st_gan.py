@@ -25,8 +25,6 @@ OLD2NEW = [[2,0], [3,1], [4,2], [5,3], [6,4], [7,5], [8,6], [9,7],
             [10,8], [11,9], [12,10], [13,11], [1,15], [14,13], [15,14],
             [0,12], [16,16], [17,17]]
 
-e = math.e
-
 class MOVIE_GAN():
     def __init__(self):
         #Input shape
@@ -35,7 +33,7 @@ class MOVIE_GAN():
         self.flames = 32
         self.pose_movie_shape = (self.flames, self.annotations, self.coordinates)
         self.latent_dim = 100
-        self.msgan_parameter = 0.07
+        self.gan_parameter = 0.1
 
         optimizer = Adam(0.0002, 0.5)
 
@@ -45,64 +43,82 @@ class MOVIE_GAN():
             optimizer=optimizer,
             metrics=['accuracy'])
 
-        # Build the generator
-        self.generator = self.build_generator()
+        self.discriminator_h = self.build_discriminator_h()
+        self.discriminator.compile(loss='binary_crossentropy',
+            optimizer=optimizer,
+            metrics=['accuracy'])
 
-        self.generator2 = Network(inputs=self.generator.inputs, outputs=self.generator.outputs)
+        self.discriminator_b = self.build_discriminator_b()
+        self.discriminator.compile(loss='binary_crossentropy',
+            optimizer=optimizer,
+            metrics=['accuracy'])
+
+        # Build the generator_h
+        self.generator_h = self.build_generator_h()
 
         # The generator takes noise as input and generates imgs
-        z1 = Input(shape=(self.latent_dim,))
-        z2 = Input(shape=(self.latent_dim,))
-        #gen1 = self.generator(z[0])
-        poses1 = self.generator(z1)
-        poses2 = self.generator2(z2)
+        z = Input(shape=(self.latent_dim,))
+
+        pose_h = self.generator_h(z)
+        pose = self.generator(z)
 
         # For the combined model we will only train the generator
         self.discriminator.trainable = False
+        self.discriminator_h.trainable = False
 
         # The discriminator takes generated images as input and determines validity
-        valid = self.discriminator(poses1)
-
+        valid_h = self.discriminator_h(pose_h)
+        valid = self.discriminator(pose)
 
         # The combined model  (stacked generator and discriminator)
         # Trains the generator to fool the discriminator
 
-        loss = Lambda(self.msgan_loss, output_shape = (1,), name = "msgan_loss")([z1,z2,poses1,poses2,valid])
-        self.combined = Model([z1,z2],loss)
+        loss = Lambda(self.msgan_loss, output_shape = (1,), name = "gan_loss")([valid_h,valid])
+        self.combined = Model(z,loss)
 
         #self.combined.compile(loss={"msgan_loss" : lambda y_true, y_pred : y_pred,
         self.combined.compile(loss='binary_crossentropy',
             optimizer=optimizer,
             metrics=['accuracy'])
 
-    def msgan_loss(self, args):
+        # Build the generator_h
+        self.generator_b = self.build_generator_b()
 
-        z1 = args[0]
-        z2 = args[1]
-        poses1 = args[2]
-        poses2 = args[3]
-        valid = args[4]
+        # The generator takes noise as input and generates imgs
+        z = Input(shape=(self.latent_dim,))
 
+        pose_b = self.generator_b(z)
+        pose = self.generator(z)
 
-        merge1 = tf.pow(tf.subtract(z1,z2),2)
-        dist1 = tf.reduce_sum(merge1)
+        # For the combined model we will only train the generator
+        self.discriminator.trainable = False
+        self.discriminator_b.trainable = False
 
-        merge2 = tf.pow(tf.subtract(poses1,poses2),2)
-        dist2 = tf.reduce_sum(merge2)
+        # The discriminator takes generated images as input and determines validity
+        valid_b = self.discriminator_b(pose_b)
+        valid = self.discriminator(pose)
 
-        dist = (100/1152) * (dist2 / dist1) - 1
+        # The combined model  (stacked generator and discriminator)
+        # Trains the generator to fool the discriminator
 
-        dist = self.sigmoid(dist)
+        loss = Lambda(self.gan_loss, output_shape = (1,), name = "gan_loss")([valid_b,valid])
+        self.combined = Model(z,loss)
 
-        loss =(1 - self.msgan_parameter) * valid + self.msgan_parameter * dist
+        #self.combined.compile(loss={"msgan_loss" : lambda y_true, y_pred : y_pred,
+        self.combined.compile(loss='binary_crossentropy',
+            optimizer=optimizer,
+            metrics=['accuracy'])
+
+    def gan_loss(self, args):
+
+        valid1 = args[0]
+        valid2 = args[1]
+
+        loss =(1 - self.gan_parameter) * valid1 + self.gan_parameter * valid2
 
         return loss
 
-    def sigmoid(self,a):
-        s = 1 / (1 + e**-a)
-        return s
-
-    def build_generator(self):
+    def build_generator_h(self):
         model = Sequential()
 
         model.add(Dense(32 * 128 * 64, activation = "tanh", input_dim=self.latent_dim))
@@ -117,8 +133,32 @@ class MOVIE_GAN():
         model.add(BatchNormalization())
         model.add(Activation("relu"))
         model.add(Flatten())
-        model.add(Dense(32 * 18 * 2, activation="tanh"))
-        model.add(Reshape((32, 18, 2)))
+        model.add(Dense(32 * 6 * 2, activation="tanh"))
+        model.add(Reshape((32, 6, 2)))
+        model.summary()
+
+        noise = Input(shape=(self.latent_dim,))
+        pose_h = model(noise)
+
+        return Model(noise, pose_h)
+
+    def build_generator_b(self):
+        model = Sequential()
+
+        model.add(Dense(32 * 128 * 64, activation = "tanh", input_dim=self.latent_dim))
+        model.add(Reshape((32, 128 ,64)))
+        model.add(Conv2D(64, kernel_size=(3, 4), strides=(1, 2), padding='same'))
+        model.add(BatchNormalization())
+        model.add(Activation("relu"))
+        model.add(Conv2D(32, kernel_size=(3, 4), strides=(1, 2), padding='same'))
+        model.add(BatchNormalization())
+        model.add(Activation("relu"))
+        model.add(Conv2D(16, kernel_size=(3, 4), strides=(1, 2), padding='same'))
+        model.add(BatchNormalization())
+        model.add(Activation("relu"))
+        model.add(Flatten())
+        model.add(Dense(32 * 13 * 2, activation="tanh"))
+        model.add(Reshape((32, 13, 2)))
         model.summary()
 
         noise = Input(shape=(self.latent_dim,))
