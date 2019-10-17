@@ -108,7 +108,7 @@ class MOVIE_GAN():
 
     def train(self, epochs, batch_size=32, save_interval=50):
         #from pose_utils import load_pose_cords_from_string
-        input_folder = './annotations/walk3/'
+        input_folder = './annotations/walk_30/'
         annotation_list = os.listdir(input_folder)
 
         train = np.zeros((len(annotation_list), ) + self.pose_movie_shape)
@@ -123,7 +123,7 @@ class MOVIE_GAN():
             for index, row in df.iterrows():
                 train[i][t] = self.load_pose_cords(row['keypoints_y'], row['keypoints_x'])
 
-                for j in range(BODY_BONE):
+                for j in BODY_BONE:
                     train_b[i][t][j] = train[i][t][BODY_BONE[j]]
 
             t += 1
@@ -198,7 +198,7 @@ class MOVIE_GAN():
         if not os.path.exists('./output'):
             os.mkdir('./output')
 
-        output_folder = './output/gan_walk3_2/'
+        output_folder = './output/body_walk30/'
         if not os.path.exists(output_folder):
             os.mkdir(output_folder)
 
@@ -210,7 +210,7 @@ class MOVIE_GAN():
 
         pose_movie_gen = pose_movie_gen.astype('int32')
 
-        for i in range(BODY_BONE):
+        for i in BODY_BONE:
             pose_movie[:,:,BODY_BONE[i],:] = pose_movie_gen[:,:,i,:]
 
 
