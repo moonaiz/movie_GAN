@@ -123,11 +123,10 @@ class MOVIE_GAN():
             for index, row in df.iterrows():
                 train[i][t] = self.load_pose_cords(row['keypoints_y'], row['keypoints_x'])
 
-                for j in BODY_BONE:
-                    train_b[i][t][j] = train[i][t][BODY_BONE[j]]
+                for j in range(len(BODY_BONE)):
+                    train_b[i,t,j] = train[i,t,BODY_BONE[j]]
 
-            t += 1
-
+                t += 1
 #train data fitting
 
         for i in range(len(annotation_list)):
@@ -155,7 +154,7 @@ class MOVIE_GAN():
         for epoch in range(epochs):
 
             idx = np.random.randint(0, train_b.shape[0], batch_size)
-            pose_movie_train = np.zeros((batch_size, 32, 18, 2), dtype=float)
+            pose_movie_train = np.zeros((batch_size,) + self.pose_body_movie_shape, dtype=float)
 
             for i in range(batch_size):
                 pose_movie_train[i] = train_b[idx[i]]
@@ -210,9 +209,10 @@ class MOVIE_GAN():
 
         pose_movie_gen = pose_movie_gen.astype('int32')
 
-        for i in BODY_BONE:
+        for i in range(len(BODY_BONE)):
             pose_movie[:,:,BODY_BONE[i],:] = pose_movie_gen[:,:,i,:]
 
+        pose_movie = pose_movie.astype('int32')
 
         for i in range(r * c):
             output_path = output_folder + "epoch_%d-%d.csv" %(epoch, i)
@@ -227,4 +227,4 @@ class MOVIE_GAN():
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=10001, batch_size=32, save_interval=500)
+movie_gan.train(epochs=7001, batch_size=32, save_interval=500)
