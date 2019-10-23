@@ -62,12 +62,12 @@ class MOVIE_GAN():
     def build_generator(self):
         model = Sequential()
 
-        model.add(Dense(32 * 128 * 64, activation = "tanh", input_dim=self.latent_dim))
-        model.add(Reshape((32, 128 ,64)))
-        model.add(Conv2D(64, kernel_size=(3, 4), strides=(1, 2), padding='same'))
+        model.add(Dense(128 * 108 * 64, activation = "tanh", input_dim=self.latent_dim))
+        model.add(Reshape((128, 108 ,64)))
+        model.add(Conv2D(64, kernel_size=(3, 4), strides=(2, 2), padding='same'))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
-        model.add(Conv2D(32, kernel_size=(3, 4), strides=(1, 2), padding='same'))
+        model.add(Conv2D(32, kernel_size=(3, 4), strides=(2, 2), padding='same'))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
         model.add(Conv2D(16, kernel_size=(3, 4), strides=(1, 2), padding='same'))
@@ -197,7 +197,7 @@ class MOVIE_GAN():
         if not os.path.exists('./output'):
             os.mkdir('./output')
 
-        output_folder = './output/body_walk30/'
+        output_folder = './output/body_walk30-2/'
         if not os.path.exists(output_folder):
             os.mkdir(output_folder)
 
