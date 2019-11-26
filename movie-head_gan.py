@@ -20,14 +20,14 @@ OLD2NEW = [[2,0], [3,1], [4,2], [5,3], [6,4], [7,5], [8,6], [9,7],
             [10,8], [11,9], [12,10], [13,11], [1,15], [14,13], [15,14],
             [0,12], [16,16], [17,17]]
 
-BODY_BONE = [0,14,15,16,17]
+BODY_BONE = [0,1,14,15,16,17]
 
 class MOVIE_GAN():
     def __init__(self):
         #Input shape
         self.coordinates = 2
         self.annotations = 18
-        self.body_annotations = 5
+        self.body_annotations = 6
         self.flames = 32
         self.pose_movie_shape = (self.flames, self.annotations, self.coordinates)
         self.pose_body_movie_shape = (self.flames, self.body_annotations, self.coordinates)
@@ -62,8 +62,8 @@ class MOVIE_GAN():
     def build_generator(self):
         model = Sequential()
 
-        model.add(Dense(263 * 47 * 64, activation = "tanh", input_dim=self.latent_dim))
-        model.add(Reshape((263, 47 ,64)))
+        model.add(Dense(263 * 55 * 64, activation = "tanh", input_dim=self.latent_dim))
+        model.add(Reshape((263, 55 ,64)))
         model.add(Conv2D(64, kernel_size=(3, 4), strides=(2, 2), padding='same'))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
@@ -74,8 +74,8 @@ class MOVIE_GAN():
         model.add(BatchNormalization())
         model.add(Activation("relu"))
         model.add(Flatten())
-        model.add(Dense(32 * 5 * 2, activation="tanh"))
-        model.add(Reshape((32, 5, 2)))
+        model.add(Dense(32 * 6 * 2, activation="tanh"))
+        model.add(Reshape((32, 6, 2)))
         model.summary()
 
         noise = Input(shape=(self.latent_dim,))
@@ -196,7 +196,7 @@ class MOVIE_GAN():
         if not os.path.exists('./output'):
             os.mkdir('./output')
 
-        output_folder = './output/head_walk30/'
+        output_folder = './output/head_walk30-1/'
         if not os.path.exists(output_folder):
             os.mkdir(output_folder)
 

@@ -20,13 +20,17 @@ OLD2NEW = [[2,0], [3,1], [4,2], [5,3], [6,4], [7,5], [8,6], [9,7],
             [10,8], [11,9], [12,10], [13,11], [1,15], [14,13], [15,14],
             [0,12], [16,16], [17,17]]
 
+BODY_BONE = [1,2,3,4,5,6,7,8,9,10,11,12,13]
+
 class MOVIE_GAN():
     def __init__(self):
         #Input shape
         self.coordinates = 2
         self.annotations = 18
+        self.body_annotations = 13
         self.flames = 32
         self.pose_movie_shape = (self.flames, self.annotations, self.coordinates)
+        self.pose_body_movie_shape = (self.flames, self.body_annotations, self.coordinates)
         self.latent_dim = 100
 
         optimizer = Adam(0.0002, 0.5)
@@ -103,7 +107,7 @@ class MOVIE_GAN():
 
     def train(self, epochs, batch_size=32, save_interval=50):
         #from pose_utils import load_pose_cords_from_string
-        input_folder = './annotations/walk2/'
+        input_folder = './annotations/walk_30/'
         annotation_list = os.listdir(input_folder)
 
         train = np.zeros((len(annotation_list), ) + self.pose_movie_shape)
@@ -183,10 +187,11 @@ class MOVIE_GAN():
         noise = np.random.normal(0, 1, (r * c, self.latent_dim))
         pose_movie_gen = self.generator.predict(noise)#gen_img -1 - 1
 
+
         if not os.path.exists('./output'):
             os.mkdir('./output')
 
-        output_folder = './output/walk2_annotations/'
+        output_folder = './output/1st_gan1_walk30-2/'
         if not os.path.exists(output_folder):
             os.mkdir(output_folder)
 
@@ -196,8 +201,14 @@ class MOVIE_GAN():
         # Rescale 0 - 255
         pose_movie_gen = 255 * pose_movie_gen
 
-        pose_movie_gen = pose_movie_gen.astype('int32')
+        #if you want to view only body annotations
+        """
+        for i in range(self.annotations):
+            if not i in BODY_BONE:
+                pose_movie_gen[:,:,i,:] = -1
+        """
 
+        pose_movie_gen = pose_movie_gen.astype('int32')
 
         for i in range(r * c):
             output_path = output_folder + "epoch_%d-%d.csv" %(epoch, i)

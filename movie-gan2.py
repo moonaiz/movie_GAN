@@ -191,7 +191,7 @@ class MOVIE_GAN():
         if not os.path.exists('./output'):
             os.mkdir('./output')
 
-        output_folder = './output/1st_gan2_walk30/'
+        output_folder = './output/1st_gan2_walk30-2/'
         if not os.path.exists(output_folder):
             os.mkdir(output_folder)
 
@@ -204,9 +204,11 @@ class MOVIE_GAN():
         pose_movie_gen = pose_movie_gen.astype('int32')
 
         #if you want to view only body annotations
+        """
         for i in range(self.annotations):
             if i not in BODY_BONE:
                 pose_movie_gen[:,:,i,:] = -1
+        """
 
         for i in range(r * c):
             output_path = output_folder + "epoch_%d-%d.csv" %(epoch, i)

@@ -62,8 +62,8 @@ if __name__ == "__main__":
 
     args = args()
     input_image_folder = './images/'
-    input_annotation_folder = './output/msgans/'
-    output_folder = './pose_check/msgans/'
+    input_annotation_folder = './output/1st_gan1_walk30-2/'
+    output_folder = './pose_check/1st_gan1_walk30-2/'
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 

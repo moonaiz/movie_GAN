@@ -61,8 +61,8 @@ if __name__ == "__main__":
     from cmd import args
 
     args = args()
-    input_image_folder = './images/'
-    input_annotation_folder = './output/annotations/'
+    input_image_folder = './images/walk2/'
+    input_annotation_folder = './annotations/walk2/'
     output_folder = './pose_check/'
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)

@@ -62,21 +62,20 @@ class MOVIE_GAN():
     def build_generator(self):
         model = Sequential()
 
-        model.add(Dense(128 * 108 * 64, activation = "tanh", input_dim=self.latent_dim))
-        model.add(Reshape((128, 108 ,64)))
+        model.add(Dense(263 * 118 * 64, activation = "tanh", input_dim=self.latent_dim))
+        model.add(Reshape((263, 118 ,64)))
         model.add(Conv2D(64, kernel_size=(3, 4), strides=(2, 2), padding='same'))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
         model.add(Conv2D(32, kernel_size=(3, 4), strides=(2, 2), padding='same'))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
-        model.add(Conv2D(16, kernel_size=(3, 4), strides=(1, 2), padding='same'))
+        model.add(Conv2D(16, kernel_size=(3, 4), strides=(2, 2), padding='same'))
         model.add(BatchNormalization())
         model.add(Activation("relu"))
         model.add(Flatten())
         model.add(Dense(32 * 13 * 2, activation="tanh"))
-        model.add(Reshape((32, 13
-        , 2)))
+        model.add(Reshape((32, 13, 2)))
         model.summary()
 
         noise = Input(shape=(self.latent_dim,))
@@ -197,7 +196,7 @@ class MOVIE_GAN():
         if not os.path.exists('./output'):
             os.mkdir('./output')
 
-        output_folder = './output/body_walk30-2/'
+        output_folder = './output/body_walk30-3/'
         if not os.path.exists(output_folder):
             os.mkdir(output_folder)
 
@@ -227,4 +226,4 @@ class MOVIE_GAN():
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=7001, batch_size=32, save_interval=500)
+movie_gan.train(epochs=10001, batch_size=32, save_interval=500)

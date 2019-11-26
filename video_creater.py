@@ -4,7 +4,7 @@ from cmd import args
 
 args = args()
 
-base_folder = './pose_check/walk/'  + '%s/'% args.check_pose_dir + '/'
+base_folder = './pose_check/head_walk30-1/'  + '%s/'% args.check_pose_dir + '/'
 #input_folder = '%s/'% args.check_pose_dir
 
 if not os.path.exists(base_folder):

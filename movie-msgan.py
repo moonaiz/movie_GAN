@@ -35,7 +35,7 @@ class MOVIE_GAN():
         self.flames = 32
         self.pose_movie_shape = (self.flames, self.annotations, self.coordinates)
         self.latent_dim = 100
-        self.msgan_parameter = 0.07
+        self.msgan_parameter = 0.1
 
         optimizer = Adam(0.0002, 0.5)
 
@@ -91,6 +91,8 @@ class MOVIE_GAN():
         dist2 = tf.reduce_sum(merge2)
 
         dist = (100/1152) * (dist2 / dist1) - 1
+
+        dist = dist * 15
 
         dist = self.sigmoid(dist)
 
@@ -235,7 +237,7 @@ class MOVIE_GAN():
         if not os.path.exists('./output'):
             os.mkdir('./output')
 
-        output_folder = './output/msgans_walk3_0.07/'
+        output_folder = './output/msgans_walk3_0.1/'
         if not os.path.exists(output_folder):
             os.mkdir(output_folder)
 
@@ -261,4 +263,4 @@ class MOVIE_GAN():
 if __name__ == '__main__':
     movie_gan = MOVIE_GAN()
 
-movie_gan.train(epochs=4001, batch_size=32, save_interval=500)
+movie_gan.train(epochs=8001, batch_size=32, save_interval=500)
