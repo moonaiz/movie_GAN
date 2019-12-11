@@ -49,7 +49,7 @@ def head_anno_processing(pose_cords):
 
             if pose_cords[j,i,0] == -1 && i == 14:
 
-                
+
 
             if pose_cords[j,i,0] == -1 && i == 15:
 
@@ -96,6 +96,34 @@ def pose_average(pose_cords):
 
     return pose_cords
 
+"""
+
+import numpy as np
+import matplotlib.pyplot as plt
+import math
+%matplotlib inline
+
+eye_r = np.array([[5, 5],[4,7]])
+err_r = np.array([[5, 5],[2,6]])
+
+y_vec = np.array([[5, 5], eye_r[:,1]])
+
+plt.plot(eye_r[:, 0], eye_r[:, 1], label='eye_r')
+plt.plot(err_r[:, 0], err_r[:, 1], label='err_r')
+
+eye_angle = math.acos(np.linalg.norm(y_vec[1] - y_vec[0], ord=2) / np.linalg.norm(eye_r[1] - eye_r[0], ord=2))
+err_angle = math.acos(np.linalg.norm(y_vec[1] - y_vec[0], ord=2) / np.linalg.norm(err_r[1] - err_r[0], ord=2))
+
+print(eye_angle)
+print(err_angle)
+
+
+
+plt.legend()
+
+plt.show()
+
+"""
 
 if __name__ == "__main__":
 
