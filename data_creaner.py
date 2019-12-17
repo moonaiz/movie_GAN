@@ -7,6 +7,7 @@ import pandas as pd
 import json
 import skimage.measure, skimage.transform
 import sys
+import math
 
 BODY_BONE = [1,2,3,4,5,6,7,8,9,10,11,12,13]
 HEAD_BONE = [0,14,15,16,17]
@@ -15,6 +16,46 @@ MISSING_VALUE = -1
 flames = 32
 annotations = 18
 coordinates = 2
+
+def rotation(vec, t, deg=False):
+    if deg == True:
+        t = np.deg2rad(t)
+
+    a = np.array([[np.cos(t), -np.sin(t)], [np.sin(t), np.cos(t)]])
+
+    ax = np.dot(a, vec)
+
+    return ax
+
+def coordinate_estimator(eye, err, base, correct_rad, frag = 'eye'):
+    eye_central = eye - base
+    err_central = err - base
+
+    eye_rad = math.acos(np.linalg.norm(np.array([0, eye_central[1]]), ord=2) /
+                                            np.linalg.norm(eye_central, ord=2))
+
+    err_rad = math.acos(np.linalg.norm(np.array([0, err_central[1]]), ord=2) /
+                                            np.linalg.norm(err_central, ord=2))
+
+    fix_rad = eye_rad - correct_rad
+
+    eye_central = rotation(eye_central, fix_rad)
+    err_central = rotation(err_central, fix_rad)
+
+    eye_reverse = np.array([eye_central[0] * -1, eye_central[1]])
+    err_reverse = np.array([err_central[0] * -1, err_central[1]])
+
+    eye_reverse = rotation(eye_reverse, fix_rad * -1)
+    err_reverse = rotation(err_reverse, fix_rad * -1)
+
+    eye_reverse = eye_reverse + base
+    err_reverse = err_reverse + base
+
+    if frag == 'eye':
+        return eye_reverse
+    else:
+        return err_reverse
+
 
 def load_pose_cords(self, y_str, x_str):
     y_cords = json.loads(y_str)
@@ -44,30 +85,59 @@ def flame_average(pose_cords):
 
 def head_anno_processing(pose_cords):
 
+    count = 0
+    correct_right = np.zeros(2,)
+    correct_left = np.zeros(2,)
+    correct_center = np.zeros(2,)
+
+    for i in range(flames):
+
+        if pose_codes[i,14,0] != -1 && pose_codes[i,15,0] != -1:
+            correct_right += pose_codes[i,15,:]
+            correct_left += pose_codes[i,14,:]
+            correct_center += pose_codes[i,0,:]
+
+            count += 1
+
+        correct_right = correct_right / count
+        correct_left = correct_left / count
+        correct_center = correct_center / count
+
+        correct_rad = math.acos(np.linalg.norm(correct_left - correct_center, ord=2) /
+                                            np.linalg.norm(correct_right - correct_center, ord=2))
+
+
     for i in HEAD_BONE:
         for j in range(flames):
 
             if pose_cords[j,i,0] == -1 && i == 14:
-
-
+                pose_codes[j,i,:] = coordinate_estimator(pose_codes[j,15,:], pose_codes[j,17,:], pose_codes[j,0,:],
+                                                            correct_rad, frag = 'eye')
 
             if pose_cords[j,i,0] == -1 && i == 15:
+                pose_codes[j,i,:] = coordinate_estimator(pose_codes[j,14,:], pose_codes[j,16,:], pose_codes[j,0,:],
+                                                            correct_rad, frag = 'eye')
 
             if pose_cords[j,i,0] == -1 && i == 16:
+                pose_codes[j,i,:] = coordinate_estimator(pose_codes[j,15,:], pose_codes[j,17,:], pose_codes[j,0,:],
+                                                            correct_rad, frag = 'err')
 
+            if pose_cords[j,i,0] == -1 && i == 17:
+                pose_codes[j,i,:] = coordinate_estimator(pose_codes[j,14,:], pose_codes[j,16,:], pose_codes[j,0,:],
+                                                            correct_rad, frag = 'err')
+                                                            
+                """""
                 x_value = pose_codes[j,17,0] - pose_cords[j,0,0]
                 y_value = pose_codes[j,17,1] - pose_cords[j,0,1]
 
                 pose_cords[j,i,0] = pose_cords[j,0,0] - x_value
                 pose_cords[j,i,1] = pose_cords[j,0,1] - y_value
-
-            if pose_cords[j,i,0] == -1 && i == 17:
-
                 x_value = pose_codes[j,16,0] - pose_cords[j,0,0]
                 y_value = pose_codes[j,16,1] - pose_cords[j,0,1]
 
                 pose_cords[j,i,0] = pose_cords[j,0,0] - x_value
                 pose_cords[j,i,1] = pose_cords[j,0,1] - y_value
+                """""
 
     return pose_cords
 
