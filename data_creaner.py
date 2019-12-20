@@ -95,18 +95,21 @@ def head_anno_processing(pose_cords):
     for i in range(flames):
 
         if pose_cords[i,14,0] != -1 and pose_cords[i,15,0] != -1:
-            correct_right = np.add(correct_right, pose_cords[i,15,:])
-            correct_left = np.add(correct_left, pose_cords[i,14,:])
-            correct_center = np.add(correct_center, pose_cords[i,0,:])
+            correct_right = correct_right + pose_cords[i,15,:]
+            correct_left = correct_left + pose_cords[i,14,:]
+            correct_center = correct_center + pose_cords[i,0,:]
 
             count += 1
 
-        correct_right = correct_right / count
-        correct_left = correct_left / count
-        correct_center = correct_center / count
+    correct_right = correct_right / count
+    correct_left = correct_left / count
+    correct_center = correct_center / count
 
-        correct_rad = math.acos(np.linalg.norm(correct_left - correct_center, ord=2) /
-                                    np.linalg.norm(correct_right - correct_center, ord=2))
+    print(np.linalg.norm(correct_left - correct_center, ord=2) /
+                                np.linalg.norm(correct_right - correct_center, ord=2))
+
+    correct_rad = math.acos(np.linalg.norm(correct_left - correct_center, ord=2) /
+                                np.linalg.norm(correct_right - correct_center, ord=2))
 
 
     for i in HEAD_BONE:
@@ -224,4 +227,4 @@ if __name__ == "__main__":
         o_f.write('name:keypoints_y:keypoints_x')
         for t in range(32):
             o_f.write('%s.jpg: %s: %s' % ('{0:02d}'.format(t), str(list(pose_cords[t, :, 0])), str(list(pose_cords[t, :, 1]))))
-            result_file.flush()
+            o_f.flush()
