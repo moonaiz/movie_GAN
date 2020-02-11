@@ -205,20 +205,6 @@ class MOVIE_GAN():
                 train[i][t] = self.load_pose_cords(row['keypoints_y'], row['keypoints_x'])
                 t += 1
 
-#train data fitting
-
-        for i in range(len(annotation_list)):
-            for j in range(self.flames):
-                for k in range(self.annotations):
-                    for l in range(self.coordinates):
-
-                        if train[i,j,k,l] == -1:
-                            if j == 0:
-                                train[i,j,k,l] = (train[i,j+1,k,l] + train[i,j+2,k,l])/2
-                            elif not j == self.flames - 1:
-                                train[i,j,k,l] = (train[i,j-1,k,l] + train[i,j+1,k,l])/2
-                            else:
-                                train[i,j,k,l] = (train[i,j-1,k,l] + train[i,j-2,k,l])/2
 
         train = train / 127.5 - 1
 

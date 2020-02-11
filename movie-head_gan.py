@@ -13,6 +13,7 @@ import os
 import pandas as pd
 import json
 import csv
+import sys
 
 import numpy as np
 
@@ -196,7 +197,9 @@ class MOVIE_GAN():
         if not os.path.exists('./output'):
             os.mkdir('./output')
 
-        output_folder = './output/head_walk30-1/'
+        args = sys.argv
+
+        output_folder = './output/' + argv[1] + '_head/'
         if not os.path.exists(output_folder):
             os.mkdir(output_folder)
 

@@ -1,5 +1,8 @@
+from __future__ import print_function
+
 from scipy.ndimage.filters import gaussian_filter
 from collections import defaultdict
+from numpy import linalg as LA
 
 import os
 import numpy as np
@@ -17,48 +20,76 @@ flames = 32
 annotations = 18
 coordinates = 2
 
+def temp(pose_cords, flag = True):
+
+    if flag == True:
+        pose_cords = pose_cords[:,:,[1,0]]
+        pose_cords[:,:,1] = 256 - pose_cords[:,:,1]
+
+    else:
+        pose_cords[:,:,1] = 256 - pose_cords[:,:,1]
+        pose_cords = pose_cords[:,:,[1,0]]
+
+    return pose_cords
+
+def arccos(u, v):
+
+    i = np.inner(u, v)
+    n = LA.norm(u) * LA.norm(v)
+
+    c = i / n
+    a = np.arccos(np.clip(c, -1.0, 1.0))
+
+    return a
+
 def rotation(vec, t, deg=False):
+
     if deg == True:
         t = np.deg2rad(t)
 
     a = np.array([[np.cos(t), -np.sin(t)], [np.sin(t), np.cos(t)]])
 
+    #print(t.shape)
+    #print(vec.shape)
+
     ax = np.dot(a, vec)
 
     return ax
 
-def coordinate_estimator(eye, err, base, correct_rad, frag = 'eye'):
-    eye_vec = np.array([eye[1], eye[0]])
-    err_vec = np.array([err[1], err[0]])
-    base_vec = np.array([base[1], base[0]])
+def coordinate_estimator(eye, err, base, correct_rad, frag = '14'):
+    eye_vec = np.array([eye[0], eye[1]])
+    err_vec = np.array([err[0], err[1]])
+    base_vec = np.array([base[0], base[1]])
 
-    eye_central = eye_vec - base_vec
-    err_central = err_vec - base_vec
+    eye_central = np.subtract(eye_vec, base_vec)
+    err_central = np.subtract(err_vec, base_vec)
 
-    eye_rad = math.acos(np.linalg.norm(np.array([0, eye_central[1]]), ord=2) / np.linalg.norm(eye_central, ord=2))
+    if frag == '14':
+        eye_rotate = rotation(eye_central, correct_rad)
+        eye_correct = eye_rotate + base_vec
 
-    err_rad = math.acos(np.linalg.norm(np.array([0, err_central[1]]), ord=2) / np.linalg.norm(err_central, ord=2))
-
-    fix_rad = eye_rad - correct_rad
-
-    eye_central = rotation(eye_central, fix_rad)
-    err_central = rotation(err_central, fix_rad)
-
-    eye_reverse = np.array([eye_central[0] * -1, eye_central[1]])
-    err_reverse = np.array([err_central[0] * -1, err_central[1]])
-
-    eye_reverse = rotation(eye_reverse, fix_rad * -1)
-    err_reverse = rotation(err_reverse, fix_rad * -1)
-
-    eye_reverse = eye_reverse + base_vec
-    err_reverse = err_reverse + base_bec
-
-    if frag == 'eye':
-        eye_correct = np.array([eye_reverse[1], eye_reverse[0]])
         return eye_correct
-    else:
-        err_correct = np.array([err_reverse[1], err_reverse[0]])
+
+    elif frag == '15':
+        eye_rotate = rotation(eye_central, correct_rad * -1)
+        eye_correct = eye_rotate + base_vec
+
+        return eye_correct
+
+    elif frag == '16':
+        eye_err_rad = arccos(err_central, eye_central)
+        err_rotate = rotation(err_central, correct_rad + (2 * eye_err_rad))
+        err_correct = err_rotate + base_vec
+
         return err_correct
+
+    else:
+        eye_err_rad = arccos(eye_central, err_central)
+        err_rotate = rotation(err_central, -1 * (correct_rad + (2 * eye_err_rad)))
+        err_correct = err_rotate + base_vec
+
+        return err_correct
+
 
 def load_pose_cords_from_strings(y_str, x_str):
     y_cords = json.loads(y_str)
@@ -69,18 +100,17 @@ def flame_average(pose_cords):
 
     for i in range(flames):
         for j in range(annotations):
-            for k in range(coordinates):
 
-                    if pose_cords[i,j,k] == MISSING_VALUE:
-                        if i == 0:
-                            if pose_cords[i+1,j,k] != MISSING_VALUE and pose_cords[i+2,j,k] != MISSING_VALUE:
-                                pose_cords[i,j,k] = (pose_cords[i+1,j,k] + pose_cords[i+2,j,k])/2
-                        elif not i == flames - 1:
-                            if pose_cords[i-1,j,k] != MISSING_VALUE and pose_cords[i+1,j,k] != MISSING_VALUE:
-                                pose_cords[i,j,k] = (pose_cords[i-1,j,k] + pose_cords[i+1,j,k])/2
-                        else:
-                            if pose_cords[i-1,j,k] != MISSING_VALUE and pose_cords[i-2,j,k] != MISSING_VALUE:
-                                pose_cords[i,j,k] = (pose_cords[i-1,j,k] + pose_cords[i-2,j,k])/2
+                if pose_cords[i,j,0] == MISSING_VALUE:
+                    if i == 0:
+                        if pose_cords[i+1,j,0] != MISSING_VALUE and pose_cords[i+2,j,0] != MISSING_VALUE:
+                            pose_cords[i,j,:] = (pose_cords[i+1,j,:] + pose_cords[i+2,j,:])/2
+                    elif not i == flames - 1:
+                        if pose_cords[i-1,j,0] != MISSING_VALUE and pose_cords[i+1,j,0] != MISSING_VALUE:
+                            pose_cords[i,j,:] = (pose_cords[i-1,j,:] + pose_cords[i+1,j,:])/2
+                    else:
+                        if pose_cords[i-1,j,0] != MISSING_VALUE and pose_cords[i-2,j,0] != MISSING_VALUE:
+                            pose_cords[i,j,:] = (pose_cords[i-1,j,:] + pose_cords[i-2,j,:])/2
 
 
     return pose_cords
@@ -103,46 +133,30 @@ def head_anno_processing(pose_cords):
 
     correct_right = correct_right / count
     correct_left = correct_left / count
+
     correct_center = correct_center / count
 
-    print(np.linalg.norm(correct_left - correct_center, ord=2) /
-                                np.linalg.norm(correct_right - correct_center, ord=2))
+    #correct_rad = math.acos(np.linalg.norm(correct_left - correct_center, ord=2) /
+                                #np.linalg.norm(correct_right - correct_center, ord=2))
 
-    correct_rad = math.acos(np.linalg.norm(correct_left - correct_center, ord=2) /
-                                np.linalg.norm(correct_right - correct_center, ord=2))
+    correct_rad = arccos(correct_left - correct_center, correct_right - correct_center)
 
+    #print(np.linalg.norm(correct_left - correct_center, ord=2))
 
     for i in HEAD_BONE:
         for j in range(flames):
 
             if pose_cords[j,i,0] == -1 and i == 14:
-                pose_cords[j,i,:] = coordinate_estimator(pose_cords[j,15,:], pose_cords[j,17,:], pose_cords[j,0,:],
-                                                            correct_rad, frag = 'eye')
+                pose_cords[j,i,:] = coordinate_estimator(pose_cords[j,15,:], pose_cords[j,17,:], pose_cords[j,0,:], correct_rad, frag = '14')
 
             if pose_cords[j,i,0] == -1 and i == 15:
-                pose_cords[j,i,:] = coordinate_estimator(pose_cords[j,14,:], pose_cords[j,16,:], pose_cords[j,0,:],
-                                                            correct_rad, frag = 'eye')
+                pose_cords[j,i,:] = coordinate_estimator(pose_cords[j,14,:], pose_cords[j,16,:], pose_cords[j,0,:], correct_rad, frag = '15')
 
             if pose_cords[j,i,0] == -1 and i == 16:
-                pose_cords[j,i,:] = coordinate_estimator(pose_cords[j,15,:], pose_cords[j,17,:], pose_cords[j,0,:],
-                                                            correct_rad, frag = 'err')
+                pose_cords[j,i,:] = coordinate_estimator(pose_cords[j,15,:], pose_cords[j,17,:], pose_cords[j,0,:], correct_rad, frag = '16')
 
             if pose_cords[j,i,0] == -1 and i == 17:
-                pose_cords[j,i,:] = coordinate_estimator(pose_cords[j,14,:], pose_cords[j,16,:], pose_cords[j,0,:],
-                                                            correct_rad, frag = 'err')
-
-                """""
-                x_value = pose_cords[j,17,0] - pose_cords[j,0,0]
-                y_value = pose_cords[j,17,1] - pose_cords[j,0,1]
-
-                pose_cords[j,i,0] = pose_cords[j,0,0] - x_value
-                pose_cords[j,i,1] = pose_cords[j,0,1] - y_value
-                x_value = pose_cords[j,16,0] - pose_cords[j,0,0]
-                y_value = pose_cords[j,16,1] - pose_cords[j,0,1]
-
-                pose_cords[j,i,0] = pose_cords[j,0,0] - x_value
-                pose_cords[j,i,1] = pose_cords[j,0,1] - y_value
-                """""
+                pose_cords[j,i,:] = coordinate_estimator(pose_cords[j,14,:], pose_cords[j,16,:], pose_cords[j,0,:], correct_rad, frag = '17')
 
     return pose_cords
 
@@ -153,7 +167,7 @@ def pose_average(pose_cords):
 
             if pose_cords[i,j,0] == MISSING_VALUE:
 
-                sum_x, sum_y = 0
+                sum_x, sum_y = 0, 0
                 count = 0
 
                 for k in range(annotations):
@@ -171,35 +185,6 @@ def pose_average(pose_cords):
 
     return pose_cords
 
-"""
-
-import numpy as np
-import matplotlib.pyplot as plt
-import math
-%matplotlib inline
-
-eye_r = np.array([[5, 5],[4,7]])
-err_r = np.array([[5, 5],[2,6]])
-
-y_vec = np.array([[5, 5], eye_r[:,1]])
-
-plt.plot(eye_r[:, 0], eye_r[:, 1], label='eye_r')
-plt.plot(err_r[:, 0], err_r[:, 1], label='err_r')
-
-eye_angle = math.acos(np.linalg.norm(y_vec[1] - y_vec[0], ord=2) / np.linalg.norm(eye_r[1] - eye_r[0], ord=2))
-err_angle = math.acos(np.linalg.norm(y_vec[1] - y_vec[0], ord=2) / np.linalg.norm(err_r[1] - err_r[0], ord=2))
-
-print(eye_angle)
-print(err_angle)
-
-
-
-plt.legend()
-
-plt.show()
-
-"""
-
 if __name__ == "__main__":
 
 
@@ -212,19 +197,27 @@ if __name__ == "__main__":
     for name in os.listdir(input_annotation_folder):
 
         df = pd.read_csv(input_annotation_folder + name, sep=':')
+        df = df.sort_values('name')
 
         pose_cords = np.zeros((flames, annotations, coordinates))
 
+        i = 0
         for index, row in df.iterrows():
-            pose_cords[index] = load_pose_cords_from_strings(row['keypoints_y'], row['keypoints_x'])
+            pose_cords[i] = load_pose_cords_from_strings(row['keypoints_y'], row['keypoints_x'])
+            i += 1
 
+        pose_cords = temp(pose_cords, flag = True)
         pose_cords = flame_average(pose_cords)
         pose_cords = head_anno_processing(pose_cords)
         pose_cords = pose_average(pose_cords)
+        pose_cords = temp(pose_cords, flag = False)
 
-        o_f = open(output_folder + name, 'w')
+        pose_cords = pose_cords.astype('int32')
+
+        path = output_folder + name
+        o_f = open(path, 'w')
         processed_names = set()
-        o_f.write('name:keypoints_y:keypoints_x')
+        print('name:keypoints_y:keypoints_x',file=o_f)
         for t in range(32):
-            o_f.write('%s.jpg: %s: %s' % ('{0:02d}'.format(t), str(list(pose_cords[t, :, 0])), str(list(pose_cords[t, :, 1]))))
+            print('%s.jpg: %s: %s' % ('{0:02d}'.format(t), str(list(pose_cords[t, :, 0])), str(list(pose_cords[t, :, 1]))), file=o_f)
             o_f.flush()
